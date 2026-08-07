@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="768" viewBox="0 0 512 768" role="img" aria-label="Cover unavailable">
+  <rect width="512" height="768" fill="#1a1a1a"/>
+  <path d="M128 176h256v336H128z" fill="none" stroke="#393939" stroke-width="12"/>
+  <path d="m172 414 66-82 53 61 42-48 51 69" fill="none" stroke="#393939" stroke-width="12"/>
+  <circle cx="323" cy="270" r="30" fill="#393939"/>
+  <text x="256" y="575" fill="#777" font-family="system-ui,sans-serif" font-size="28" text-anchor="middle">MangaVAn</text>
+</svg>
+
