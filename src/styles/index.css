@@ -389,7 +389,7 @@ button:disabled { cursor: not-allowed; opacity: .38; }
   transform: none;
   border: 0;
   border-radius: 0;
-  background: radial-gradient(circle at 76% 35%, rgb(59 130 246 / 20%), transparent 34%), linear-gradient(90deg, #080d1a 0%, rgb(8 13 26 / 92%) 38%, rgb(8 13 26 / 22%) 78%, #080d1a 100%);
+  background: linear-gradient(0deg, var(--bg) 0%, transparent 34%), radial-gradient(circle at 76% 35%, rgb(59 130 246 / 20%), transparent 36%), linear-gradient(90deg, #080d1a 0%, rgb(8 13 26 / 96%) 24%, rgb(8 13 26 / 72%) 48%, rgb(8 13 26 / 22%) 76%, rgb(8 13 26 / 48%) 100%);
   box-shadow: none;
 }
 .hero-banner::after {
@@ -406,14 +406,16 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .hero-banner__art {
   position: absolute;
   z-index: -2;
-  inset: 0 0 0 38%;
-  width: 62%;
+  inset: 0;
+  width: 100%;
   height: 100%;
-  opacity: .64;
+  opacity: .68;
   object-fit: cover;
-  object-position: center 24%;
+  object-position: 68% 24%;
   filter: saturate(.9) contrast(1.04);
-  transform: scale(1.015);
+  transform: scale(1.02);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 5%) 18%, rgb(0 0 0 / 42%) 36%, black 62%, black 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, rgb(0 0 0 / 5%) 18%, rgb(0 0 0 / 42%) 36%, black 62%, black 100%);
 }
 .hero-banner__content > p:not(.eyebrow) { max-width: 600px; color: #c2cbdb; font-size: 1.08rem; }
 .button--primary { box-shadow: 0 8px 26px rgb(37 99 235 / 26%); }
@@ -454,11 +456,11 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .site-footer { background: #070b15; }
 
 @media (max-width: 980px) {
-  .hero-banner__art { left: 28%; width: 72%; opacity: .52; }
+  .hero-banner__art { left: 0; width: 100%; opacity: .56; object-position: 64% 24%; }
 }
 
 @media (max-width: 680px) {
-  .hero-banner__art { inset: 0; width: 100%; opacity: .38; object-position: 58% 20%; }
+  .hero-banner__art { inset: 0; width: 100%; opacity: .4; object-position: 58% 20%; -webkit-mask-image: linear-gradient(90deg, rgb(0 0 0 / 18%), black 78%); mask-image: linear-gradient(90deg, rgb(0 0 0 / 18%), black 78%); }
   .hero-banner::before { background: linear-gradient(90deg, rgb(8 13 26 / 96%), rgb(8 13 26 / 58%)), linear-gradient(0deg, var(--bg), transparent 50%); }
   .home-content { padding-top: 2.8rem; }
   .content-section { margin-bottom: 4.4rem; }
