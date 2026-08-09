@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Vite prints the local URL, normally `http://localhost:5173`. MangaDex and AniList have built-in public endpoints. To enable official English edition fallbacks, copy `.env.example` to `.env.local`, enable the Google Books API in Google Cloud, and set a browser key restricted to your deployment's HTTP referrers and the Books API.
+Vite prints the local URL, normally `http://localhost:5173`. MangaDex requests use the local `/api/mangadex` path, which Vite proxies in development and Vercel proxies in production. AniList uses its public endpoint directly. To enable official English edition fallbacks, copy `.env.example` to `.env.local`, enable the Google Books API in Google Cloud, and set a browser key restricted to your deployment's HTTP referrers and the Books API.
 
 ## Commands
 
@@ -82,7 +82,7 @@ Cover files use `https://uploads.mangadex.org/covers/{mangaId}/{filename}`. Read
 
 Build with `npm run build` and deploy `dist/` as a static site.
 
-- **Vercel:** import the repository, select Vite, and keep the default build command/output. `vercel.json` handles client routes.
+- **Vercel:** import the repository, select Vite, and keep the default build command/output. `vercel.json` handles client routes and proxies same-origin MangaDex API requests to avoid browser CORS restrictions.
 - **Netlify:** use `npm run build` and publish `dist`. `public/_redirects` is copied into the bundle for client routes.
 - **Other static hosts:** rewrite every unknown route to `/index.html`; otherwise direct visits to manga and reader URLs will return a host-level 404.
 

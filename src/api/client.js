@@ -20,7 +20,9 @@ function wait(ms, signal) {
 }
 
 export const mangaDexClient = axios.create({
-  baseURL: import.meta.env.VITE_MANGADEX_API_URL || 'https://api.mangadex.org',
+  // Keep browser requests same-origin. Vite proxies this path in development,
+  // while Vercel forwards it to MangaDex in production.
+  baseURL: import.meta.env.VITE_MANGADEX_API_URL || '/api/mangadex',
   timeout: 15000,
   headers: { Accept: 'application/json' },
 })
@@ -44,4 +46,3 @@ export function getRetryAfter(error) {
   const timestamp = Date.parse(value)
   return Number.isNaN(timestamp) ? null : Math.max(0, timestamp - Date.now())
 }
-
