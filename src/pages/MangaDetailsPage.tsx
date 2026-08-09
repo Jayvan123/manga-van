@@ -63,10 +63,10 @@ export default function MangaDetailsPage() {
 
   return (
     <div className="details-page">
-      <div className="details-backdrop" style={{ backgroundImage: `linear-gradient(to bottom, rgba(8,13,26,.54), #080d1a), url(${item.coverUrlLarge})` }} />
+      <img alt="" aria-hidden="true" className="details-backdrop" referrerPolicy="no-referrer" src={item.coverUrlLarge} />
       <div className="container page details-content">
         <section className="manga-details">
-          <img alt={`${item.title} cover`} className="manga-details__cover" src={item.coverUrlLarge} />
+          <img alt={`${item.title} cover`} className="manga-details__cover" referrerPolicy="no-referrer" src={item.coverUrlLarge} />
           <div className="manga-details__info">
             <p className="eyebrow">{formatName} · {item.status} {item.year ? `· ${item.year}` : ''}</p>
             <h1>{item.title}</h1>

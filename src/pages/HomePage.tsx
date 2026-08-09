@@ -59,10 +59,12 @@ export default function HomePage() {
     <>
       <section className="hero-banner">
         {featuredManga?.coverUrlLarge && (
-          <div
+          <img
+            alt=""
             aria-hidden="true"
             className="hero-banner__art"
-            style={{ backgroundImage: `url(${featuredManga.coverUrlLarge})` }}
+            referrerPolicy="no-referrer"
+            src={featuredManga.coverUrlLarge}
           />
         )}
         <div className="container hero-banner__content">
