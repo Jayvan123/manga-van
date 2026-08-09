@@ -2,6 +2,10 @@ import { mangaDexClient } from './client.js'
 import { buildCoverUrl, normalizeChapter, normalizeManga } from './normalizers.js'
 
 const CONTENT_RATINGS = ['safe', 'suggestive']
+const ORIGINAL_LANGUAGE_BY_TYPE = {
+  manga: ['ja'],
+  manhwa: ['ko'],
+}
 const SORT_MAP = {
   relevance: 'relevance',
   popularity: 'followedCount',
@@ -9,7 +13,7 @@ const SORT_MAP = {
   alphabetical: 'title',
 }
 
-function listParams({ query = '', includedTagIds = [], sort = 'popularity', page = 1, limit = 20 } = {}) {
+export function listParams({ query = '', includedTagIds = [], contentType = 'all', sort = 'popularity', page = 1, limit = 20 } = {}) {
   const orderKey = query && sort === 'relevance' ? 'relevance' : SORT_MAP[sort] || 'followedCount'
   return {
     limit,
@@ -17,6 +21,7 @@ function listParams({ query = '', includedTagIds = [], sort = 'popularity', page
     title: query || undefined,
     'includedTags[]': includedTagIds.length ? includedTagIds : undefined,
     includedTagsMode: includedTagIds.length ? 'AND' : undefined,
+    'originalLanguage[]': ORIGINAL_LANGUAGE_BY_TYPE[contentType],
     'availableTranslatedLanguage[]': ['en'],
     'contentRating[]': CONTENT_RATINGS,
     'includes[]': ['cover_art', 'author', 'artist'],

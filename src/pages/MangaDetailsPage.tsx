@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import AniListRecommendations from '../components/AniListRecommendations.js'
 import ChapterList from '../components/ChapterList.jsx'
+import CustomSelect from '../components/CustomSelect.jsx'
 import GoogleBooksSection from '../components/GoogleBooksSection.js'
 import MangaCard from '../components/MangaCard.jsx'
 import OfficialSourceLinks from '../components/OfficialSourceLinks.js'
@@ -47,19 +48,27 @@ export default function MangaDetailsPage() {
   if (!manga.data) return <div className="container page"><StatusPanel message="Manga details are unavailable." /></div>
 
   const item = manga.data
+  const formatName = item.originalLanguage === 'ko' ? 'Manhwa' : item.originalLanguage === 'ja' ? 'Manga' : 'Comic'
   const synopsis = item.description === 'No synopsis is available yet.' && aniList.data?.description
     ? aniList.data.description
     : item.description
   const readerLanguage = selectedLanguage === 'all' ? 'all' : selectedLanguage
+  const languageOptions = [
+    { label: 'English', value: 'en' },
+    ...availableLanguages
+      .filter((code) => code !== 'en')
+      .map((code) => ({ label: `${languageName(code)}${code === item.originalLanguage ? ' (original)' : ''}`, value: code })),
+    ...(availableLanguages.length > 1 ? [{ label: 'All languages', value: 'all' }] : []),
+  ]
 
   return (
     <div className="details-page">
-      <div className="details-backdrop" style={{ backgroundImage: `linear-gradient(to bottom, rgba(10,10,10,.58), #0a0a0a), url(${item.coverUrlLarge})` }} />
+      <div className="details-backdrop" style={{ backgroundImage: `linear-gradient(to bottom, rgba(8,13,26,.54), #080d1a), url(${item.coverUrlLarge})` }} />
       <div className="container page details-content">
         <section className="manga-details">
           <img alt={`${item.title} cover`} className="manga-details__cover" src={item.coverUrlLarge} />
           <div className="manga-details__info">
-            <p className="eyebrow">{item.status} {item.year ? `· ${item.year}` : ''}</p>
+            <p className="eyebrow">{formatName} · {item.status} {item.year ? `· ${item.year}` : ''}</p>
             <h1>{item.title}</h1>
             <p className="manga-details__credits">{item.authors.length ? `Story by ${item.authors.join(', ')}` : 'Author unknown'}{item.artists.length ? ` · Art by ${item.artists.join(', ')}` : ''}</p>
             <div className="tag-list">{item.tags.map((tag: MangaTag) => <Link key={tag.id} to={`/browse?tag=${tag.id}`}>{tag.name}</Link>)}</div>
@@ -88,16 +97,7 @@ export default function MangaDetailsPage() {
               <h2>Chapters</h2>
               {availableLanguages.length > 0 && <p className="chapter-languages">Available: {availableLanguages.map(languageName).join(', ')}</p>}
             </div>
-            <label>
-              <span>Translation language</span>
-              <select onChange={(event) => setSelectedLanguage(event.target.value)} value={selectedLanguage}>
-                <option value="en">English</option>
-                {availableLanguages.filter((code) => code !== 'en').map((code) => (
-                  <option key={code} value={code}>{languageName(code)}{code === item.originalLanguage ? ' (original)' : ''}</option>
-                ))}
-                {availableLanguages.length > 1 && <option value="all">All languages</option>}
-              </select>
-            </label>
+            <CustomSelect label="Translation language" onChange={setSelectedLanguage} options={languageOptions} value={selectedLanguage} />
           </div>
           <div className="results-bar"><span>{visibleChapters.length} readable chapters</span></div>
           {feed.isLoading && <div className="chapter-list-skeleton" />}

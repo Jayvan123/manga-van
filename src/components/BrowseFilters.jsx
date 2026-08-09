@@ -1,30 +1,36 @@
-export default function BrowseFilters({ query, sort, selectedTags, tags, onChange }) {
+import CustomSelect from './CustomSelect.jsx'
+
+export default function BrowseFilters({ contentType, query, sort, selectedTags, tags, onChange }) {
+  const contentTypeOptions = [
+    { label: 'Manga & manhwa', value: 'all' },
+    { label: 'Manga (Japan)', value: 'manga' },
+    { label: 'Manhwa (Korea)', value: 'manhwa' },
+  ]
+  const genreOptions = [
+    { label: 'All genres', value: '' },
+    ...tags.map((tag) => ({ label: tag.name, value: tag.id })),
+  ]
+  const sortOptions = [
+    { disabled: !query.trim(), label: 'Relevance', value: 'relevance' },
+    { label: 'Popularity', value: 'popularity' },
+    { label: 'Latest upload', value: 'latest' },
+    { label: 'Alphabetical', value: 'alphabetical' },
+  ]
+
   return (
     <div className="browse-filters">
-      <label>
-        <span>Title</span>
+      <label className="filter-field">
+        <span className="filter-field__label">Title</span>
         <input onChange={(event) => onChange({ query: event.target.value })} placeholder="Search by title" type="search" value={query} />
       </label>
-      <label>
-        <span>Genre</span>
-        <select
-          onChange={(event) => onChange({ selectedTags: event.target.value ? [event.target.value] : [] })}
-          value={selectedTags[0] || ''}
-        >
-          <option value="">All genres</option>
-          {tags.map((tag) => <option key={tag.id} value={tag.id}>{tag.name}</option>)}
-        </select>
-      </label>
-      <label>
-        <span>Sort by</span>
-        <select onChange={(event) => onChange({ sort: event.target.value })} value={sort}>
-          <option disabled={!query.trim()} value="relevance">Relevance</option>
-          <option value="popularity">Popularity</option>
-          <option value="latest">Latest upload</option>
-          <option value="alphabetical">Alphabetical</option>
-        </select>
-      </label>
+      <CustomSelect label="Type" onChange={(nextValue) => onChange({ contentType: nextValue })} options={contentTypeOptions} value={contentType} />
+      <CustomSelect
+        label="Genre"
+        onChange={(nextValue) => onChange({ selectedTags: nextValue ? [nextValue] : [] })}
+        options={genreOptions}
+        value={selectedTags[0] || ''}
+      />
+      <CustomSelect label="Sort by" onChange={(nextValue) => onChange({ sort: nextValue })} options={sortOptions} value={sort} />
     </div>
   )
 }
-

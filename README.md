@@ -1,12 +1,13 @@
 # MangaVAn
 
-MangaVAn is a private-by-default manga discovery and reading SPA. MangaDex supplies its catalog, English chapters, and reader images; AniList optionally enriches linked titles with public metadata and recommendations. It has no accounts, analytics, backend, or cookies. Reading progress stays in the visitor's browser.
+MangaVAn is a private-by-default manga and manhwa discovery and reading SPA. MangaDex supplies its catalog, English chapters, and reader images; AniList optionally enriches linked titles with public metadata and recommendations. It has no accounts, analytics, backend, or cookies. Reading progress stays in the visitor's browser.
 
 ## Features
 
 - Trending Action, Horror, Romance, and Drama rows
 - Daily recommendations influenced by recently read genres
 - Search autocomplete, genres, sorting, and numbered pagination
+- Dedicated Korean manhwa discovery and origin-based browsing
 - Manga metadata and English chapter feeds grouped by volume
 - Full-page reader with click zones, keyboard controls, chapter navigation, page preloading, and retry states
 - Versioned local reading progress and a five-title recent list
@@ -65,7 +66,9 @@ Progress is stored under `mangavan:reading-progress:v1` in `localStorage`. Each 
 
 ## API behavior
 
-The browser calls MangaDex directly and sends no credentials. Results are limited to English chapters with `safe` and `suggestive` content ratings. API calls are queued below MangaDex's documented global baseline and cached with TanStack Query. A MangaDex search can expose at most 10,000 results; filters create a new result window.
+The browser calls MangaDex directly and sends no credentials. Results are limited to English chapters with `safe` and `suggestive` content ratings. Manga and manhwa filters use MangaDex's original-language field (`ja` for Japanese manga and `ko` for Korean manhwa). API calls are queued below MangaDex's documented global baseline and cached with TanStack Query. A MangaDex search can expose at most 10,000 results; filters create a new result window.
+
+The public MangaDex API is documented at `https://api.mangadex.org/docs`, and its documentation source is available at `https://gitlab.com/mangadex-pub/mangadex-api-docs`.
 
 When a MangaDex title includes an AniList ID, the details page makes a separate public GraphQL request to AniList. AniList never supplies chapter or page data. Its recommendations open a local MangaVAn search so MangaDex availability is checked before reading. An AniList failure is non-blocking and does not prevent MangaDex details or chapters from rendering.
 

@@ -1,7 +1,7 @@
 import MangaCard from './MangaCard.jsx'
 import StatusPanel from './StatusPanel.jsx'
 
-export default function MangaSection({ title, icon, query, action, progressByManga = {} }) {
+export default function MangaSection({ title, icon = null, query, action, progressByManga = {} }) {
   if (query.isLoading) {
     return <section className="content-section"><SectionHeading title={title} icon={icon} action={action} /><CardSkeletons /></section>
   }
@@ -29,4 +29,3 @@ function SectionHeading({ title, icon, action }) {
 function CardSkeletons() {
   return <div className="manga-row" aria-label="Loading manga">{Array.from({ length: 6 }, (_, index) => <div className="manga-card skeleton-card" key={index} />)}</div>
 }
-

@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -29,7 +29,10 @@ vi.mock('../hooks/useMangaQueries.js', () => ({
 }))
 
 describe('ReaderPage', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    window.localStorage.clear()
+  })
 
   it('supports keyboard page navigation and boundary shortcuts', async () => {
     const user = userEvent.setup()
@@ -40,11 +43,53 @@ describe('ReaderPage', () => {
     )
 
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('Reading now · Chapter 1 of 2')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '33')
     await user.keyboard('{ArrowRight}')
     expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
     await user.keyboard('{End}')
     expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
     await user.keyboard('{Home}')
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+  })
+
+  it('switches between page and scroll reading modes', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+        <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
+      </MemoryRouter>,
+    )
+
+    const pageMode = screen.getByRole('button', { name: 'Page' })
+    const scrollMode = screen.getByRole('button', { name: 'Scroll' })
+    expect(pageMode).toHaveAttribute('aria-pressed', 'true')
+
+    await user.click(scrollMode)
+
+    expect(scrollMode).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getAllByRole('img')).toHaveLength(3)
+    expect(window.localStorage.getItem('mangavan:reader-mode')).toBe('scroll')
+  })
+
+  it('opens a chapter drawer and removes the old chapter footer navigation', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+        <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('button', { name: 'Next chapter' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Chapters' }))
+
+    const drawer = screen.getByRole('dialog', { name: 'Chapter list' })
+    expect(drawer).toBeInTheDocument()
+    await waitFor(() => expect(drawer.querySelector('[aria-current="page"]')).toHaveFocus())
+
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: 'Chapter list' })).not.toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Chapters' })).toHaveFocus())
   })
 })

@@ -41,12 +41,17 @@ export default function SearchBox() {
 
   return (
     <div className="search-box" role="search">
-      <span className="search-box__icon" aria-hidden="true">⌕</span>
+      <span className="search-box__icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20">
+          <circle cx="8.5" cy="8.5" r="4.75" />
+          <path d="m12 12 4 4" />
+        </svg>
+      </span>
       <input
         aria-autocomplete="list"
         aria-controls="search-suggestions"
         aria-expanded={open && value.length >= 2}
-        aria-label="Search manga"
+        aria-label="Search manga and manhwa"
         autoComplete="off"
         onBlur={() => window.setTimeout(() => setOpen(false), 120)}
         onChange={(event) => {
@@ -56,14 +61,14 @@ export default function SearchBox() {
         }}
         onFocus={() => setOpen(true)}
         onKeyDown={handleKeyDown}
-        placeholder="Search manga..."
+        placeholder="Search manga & manhwa..."
         type="search"
         value={value}
       />
       {open && value.trim().length >= 2 && (
         <div className="search-suggestions" id="search-suggestions" role="listbox">
           {isFetching && <div className="search-suggestions__message">Searching…</div>}
-          {!isFetching && !data.length && <div className="search-suggestions__message">No manga found</div>}
+          {!isFetching && !data.length && <div className="search-suggestions__message">No titles found</div>}
           {data.map((manga, index) => (
             <button
               aria-selected={index === activeIndex}
@@ -82,4 +87,3 @@ export default function SearchBox() {
     </div>
   )
 }
-

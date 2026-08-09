@@ -14,6 +14,7 @@ function MangaCard({ manga, progress, eager = false }) {
           }}
           src={manga.coverUrl || '/cover-placeholder.svg'}
         />
+        {manga.originalLanguage === 'ko' && <span className="manga-card__type">Manhwa</span>}
         {progress && <span className="manga-card__progress">Ch. {progress.chapter || '?'}</span>}
       </Link>
       <div className="manga-card__body">
@@ -25,4 +26,3 @@ function MangaCard({ manga, progress, eager = false }) {
 }
 
 export default memo(MangaCard)
-

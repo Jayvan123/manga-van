@@ -3,6 +3,7 @@ import type { Chapter, Manga, MangaTag } from '../types/manga.js'
 export interface MangaListOptions {
   query?: string
   includedTagIds?: string[]
+  contentType?: 'all' | 'manga' | 'manhwa'
   sort?: 'relevance' | 'popularity' | 'latest' | 'alphabetical'
   page?: number
   limit?: number
