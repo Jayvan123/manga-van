@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -6,6 +6,7 @@ import ReaderPage from './ReaderPage.tsx'
 
 const saveProgress = vi.fn()
 const markChapterComplete = vi.fn()
+const refetchPages = vi.fn(() => Promise.resolve())
 
 vi.mock('../context/ReadingProgressContext.jsx', () => ({
   useReadingProgress: () => ({
@@ -25,7 +26,12 @@ vi.mock('../hooks/useMangaQueries.js', () => ({
     isLoading: false,
     isError: false,
   }),
-  useChapterPages: () => ({ data: { pages: ['/1.jpg', '/2.jpg', '/3.jpg'] }, isLoading: false, isError: false }),
+  useChapterPages: () => ({
+    data: { pages: ['/1.jpg', '/2.jpg', '/3.jpg'], dataSaverPages: ['/ds1.jpg', '/ds2.jpg', '/ds3.jpg'] },
+    isLoading: false,
+    isError: false,
+    refetch: refetchPages,
+  }),
 }))
 
 describe('ReaderPage', () => {
@@ -91,5 +97,24 @@ describe('ReaderPage', () => {
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: 'Chapter list' })).not.toBeInTheDocument()
     await waitFor(() => expect(screen.getByRole('button', { name: 'Chapters' })).toHaveFocus())
+  })
+
+  it('falls back to data-saver pages and refreshes failed MangaDex sources', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+        <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
+      </MemoryRouter>,
+    )
+
+    fireEvent.error(screen.getByRole('img'))
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/ds1.jpg')
+
+    fireEvent.error(screen.getByRole('img'))
+    expect(screen.getByText('This page could not be loaded from either MangaDex image source.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(refetchPages).toHaveBeenCalledOnce()
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/1.jpg')
   })
 })

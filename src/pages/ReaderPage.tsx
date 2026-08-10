@@ -28,6 +28,8 @@ export default function ReaderPage() {
   const pages = useChapterPages(chapterId)
   const { getProgress, markChapterComplete, saveProgress } = useReadingProgress() as ReadingProgressValue
   const [imageFailed, setImageFailed] = useState(false)
+  const [pagedUseDataSaver, setPagedUseDataSaver] = useState(false)
+  const [scrollDataSaverPages, setScrollDataSaverPages] = useState<Set<number>>(() => new Set())
   const [failedScrollPages, setFailedScrollPages] = useState<Set<number>>(() => new Set())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isHeaderHidden, setIsHeaderHidden] = useState(false)
@@ -50,6 +52,7 @@ export default function ReaderPage() {
   const goToPage = useCallback((nextPage: number) => {
     const bounded = Math.min(Math.max(nextPage, 1), Math.max(pageCount, 1))
     setImageFailed(false)
+    setPagedUseDataSaver(false)
     const nextParams = new URLSearchParams(params)
     nextParams.set('page', String(bounded))
     nextParams.set('lang', requestedLanguage)
@@ -80,6 +83,27 @@ export default function ReaderPage() {
     setIsChapterPanelOpen(false)
     window.requestAnimationFrame(() => chapterToggleRef.current?.focus())
   }, [])
+
+  const retryPageImage = async (pageNumber: number) => {
+    try {
+      await pages.refetch()
+    } finally {
+      if (pageNumber === page) {
+        setImageFailed(false)
+        setPagedUseDataSaver(false)
+      }
+      setFailedScrollPages((failed) => {
+        const next = new Set(failed)
+        next.delete(pageNumber)
+        return next
+      })
+      setScrollDataSaverPages((fallbacks) => {
+        const next = new Set(fallbacks)
+        next.delete(pageNumber)
+        return next
+      })
+    }
+  }
 
   useEffect(() => {
     currentPageRef.current = page
@@ -309,18 +333,40 @@ export default function ReaderPage() {
       {readingMode === 'paged' ? (
         <div className="reader-canvas reader-canvas--paged" onClick={handleReaderClick} role="presentation">
           {!imageFailed
-            ? <img alt={`${chapterLabel(chapter)}, page ${page}`} key={pages.data.pages[page - 1]} onError={() => setImageFailed(true)} src={pages.data.pages[page - 1]} />
-            : <StatusPanel error={new Error('Image failed')} message="This page image could not be loaded." onRetry={() => setImageFailed(false)} />}
+            ? <img
+                alt={`${chapterLabel(chapter)}, page ${page}`}
+                key={`${pages.data.pages[page - 1]}:${pagedUseDataSaver ? 'data-saver' : 'original'}`}
+                onError={() => {
+                  const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
+                  if (!pagedUseDataSaver && fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) setPagedUseDataSaver(true)
+                  else setImageFailed(true)
+                }}
+                referrerPolicy="no-referrer"
+                src={pagedUseDataSaver ? pages.data.dataSaverPages?.[page - 1] || pages.data.pages[page - 1] : pages.data.pages[page - 1]}
+              />
+            : <StatusPanel error={new Error('Image failed')} message="This page could not be loaded from either MangaDex image source." onRetry={() => void retryPageImage(page)} />}
         </div>
       ) : (
         <div className="reader-scroll" aria-label={`${chapterLabel(chapter)} pages`}>
           {pages.data.pages.map((pageUrl, index) => {
             const pageNumber = index + 1
+            const fallbackUrl = pages.data.dataSaverPages?.[index]
+            const useDataSaver = scrollDataSaverPages.has(pageNumber)
             return (
               <figure data-reader-page={pageNumber} key={pageUrl}>
                 {!failedScrollPages.has(pageNumber)
-                  ? <img alt={`${chapterLabel(chapter)}, page ${pageNumber}`} loading={pageNumber <= 2 ? 'eager' : 'lazy'} onError={() => setFailedScrollPages((failed) => new Set(failed).add(pageNumber))} src={pageUrl} />
-                  : <div className="reader-page-error"><strong>Page {pageNumber} could not load</strong><button onClick={() => setFailedScrollPages((failed) => { const next = new Set(failed); next.delete(pageNumber); return next })} type="button">Try again</button></div>}
+                  ? <img
+                      alt={`${chapterLabel(chapter)}, page ${pageNumber}`}
+                      key={`${pageUrl}:${useDataSaver ? 'data-saver' : 'original'}`}
+                      loading={pageNumber <= 2 ? 'eager' : 'lazy'}
+                      onError={() => {
+                        if (!useDataSaver && fallbackUrl && fallbackUrl !== pageUrl) setScrollDataSaverPages((fallbacks) => new Set(fallbacks).add(pageNumber))
+                        else setFailedScrollPages((failed) => new Set(failed).add(pageNumber))
+                      }}
+                      referrerPolicy="no-referrer"
+                      src={useDataSaver ? fallbackUrl || pageUrl : pageUrl}
+                    />
+                  : <div className="reader-page-error"><strong>Page {pageNumber} could not load</strong><span>Both MangaDex image sources failed.</span><button onClick={() => void retryPageImage(pageNumber)} type="button">Refresh source and retry</button></div>}
                 <figcaption>Page {pageNumber} of {pageCount}</figcaption>
               </figure>
             )
