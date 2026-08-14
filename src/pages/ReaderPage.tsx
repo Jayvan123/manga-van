@@ -42,6 +42,7 @@ export default function ReaderPage() {
   const chapters = useMemo(() => [...(feed.data || [])].sort(compareChapters), [feed.data])
   const chapterIndex = chapters.findIndex((chapter) => chapter.id === chapterId)
   const chapter = chapters[chapterIndex]
+  const nextChapter = chapterIndex >= 0 ? chapters[chapterIndex + 1] : null
   const saved = getProgress(mangaId)
   const requestedPage = Number.parseInt(params.get('page') || '', 10)
   const initialPage = saved && saved.chapterId === chapterId ? saved.page : 1
@@ -242,6 +243,22 @@ export default function ReaderPage() {
   }
   if (!chapter || !pageCount || !manga.data || !pages.data) return <div className="reader-page"><StatusPanel message="This chapter has no readable pages." /></div>
 
+  const chapterCompleteCard = (
+    <section aria-label="Chapter complete" className="reader-chapter-complete">
+      <span aria-hidden="true" className="reader-chapter-complete__icon">
+        <svg viewBox="0 0 20 20"><path d="m4.5 10 3.2 3.2 7.8-7.8" /></svg>
+      </span>
+      <div className="reader-chapter-complete__copy">
+        <span>Chapter complete</span>
+        <h2>{nextChapter ? `Continue to ${chapterLabel(nextChapter)}` : 'You’re all caught up'}</h2>
+        <p>{nextChapter ? `${chapterLabel(chapter)} finished · ${chapterIndex + 1} of ${chapters.length} chapters read` : 'You reached the latest available chapter for this manga.'}</p>
+      </div>
+      {nextChapter
+        ? <button className="button button--primary" onClick={() => navigate(chapterUrl(nextChapter.id))} type="button">Read next chapter</button>
+        : <Link className="button button--secondary" to={`/manga/${mangaId}`}>Back to manga details</Link>}
+    </section>
+  )
+
   return (
     <main className={`reader-page reader-page--${readingMode}${isFullscreen ? ' is-fullscreen' : ''}${isHeaderHidden ? ' is-header-hidden' : ''}`} ref={readerRef}>
       <header className="reader-header">
@@ -331,21 +348,24 @@ export default function ReaderPage() {
       )}
 
       {readingMode === 'paged' ? (
-        <div className="reader-canvas reader-canvas--paged" onClick={handleReaderClick} role="presentation">
-          {!imageFailed
-            ? <img
-                alt={`${chapterLabel(chapter)}, page ${page}`}
-                key={`${pages.data.pages[page - 1]}:${pagedUseDataSaver ? 'data-saver' : 'original'}`}
-                onError={() => {
-                  const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
-                  if (!pagedUseDataSaver && fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) setPagedUseDataSaver(true)
-                  else setImageFailed(true)
-                }}
-                referrerPolicy="no-referrer"
-                src={pagedUseDataSaver ? pages.data.dataSaverPages?.[page - 1] || pages.data.pages[page - 1] : pages.data.pages[page - 1]}
-              />
-            : <StatusPanel error={new Error('Image failed')} message="This page could not be loaded from either MangaDex image source." onRetry={() => void retryPageImage(page)} />}
-        </div>
+        <>
+          <div className="reader-canvas reader-canvas--paged" onClick={handleReaderClick} role="presentation">
+            {!imageFailed
+              ? <img
+                  alt={`${chapterLabel(chapter)}, page ${page}`}
+                  key={`${pages.data.pages[page - 1]}:${pagedUseDataSaver ? 'data-saver' : 'original'}`}
+                  onError={() => {
+                    const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
+                    if (!pagedUseDataSaver && fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) setPagedUseDataSaver(true)
+                    else setImageFailed(true)
+                  }}
+                  referrerPolicy="no-referrer"
+                  src={pagedUseDataSaver ? pages.data.dataSaverPages?.[page - 1] || pages.data.pages[page - 1] : pages.data.pages[page - 1]}
+                />
+              : <StatusPanel error={new Error('Image failed')} message="This page could not be loaded from either MangaDex image source." onRetry={() => void retryPageImage(page)} />}
+          </div>
+          {page === pageCount && chapterCompleteCard}
+        </>
       ) : (
         <div className="reader-scroll" aria-label={`${chapterLabel(chapter)} pages`}>
           {pages.data.pages.map((pageUrl, index) => {
@@ -371,6 +391,7 @@ export default function ReaderPage() {
               </figure>
             )
           })}
+          {chapterCompleteCard}
         </div>
       )}
 
@@ -378,7 +399,11 @@ export default function ReaderPage() {
         <nav aria-label="Page navigation" className="reader-controls">
           <button disabled={page <= 1} onClick={() => goToPage(page - 1)} type="button">Previous</button>
           <span>Page {page} of {pageCount}</span>
-          <button disabled={page >= pageCount} onClick={() => goToPage(page + 1)} type="button">Next</button>
+          {page >= pageCount
+            ? nextChapter
+              ? <button className="reader-controls__continue" onClick={() => navigate(chapterUrl(nextChapter.id))} type="button">Next chapter</button>
+              : <button disabled type="button">Latest chapter</button>
+            : <button onClick={() => goToPage(page + 1)} type="button">Next</button>}
         </nav>
       )}
 

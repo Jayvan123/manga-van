@@ -56,8 +56,11 @@ describe('ReaderPage', () => {
     await user.keyboard('{End}')
     expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
+    expect(screen.getByRole('button', { name: 'Read next chapter' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Next chapter' })).toBeInTheDocument()
     await user.keyboard('{Home}')
     expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Read next chapter' })).not.toBeInTheDocument()
   })
 
   it('switches between page and scroll reading modes', async () => {

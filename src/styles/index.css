@@ -584,3 +584,32 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 @media (hover: none) {
   .manga-card:hover .manga-card__cover, .manga-card:hover .manga-card__cover img, .anilist-card a:hover img { transform: none; }
 }
+
+.reader-chapter-complete {
+  width: min(calc(100% - 2rem), 780px);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.15rem;
+  margin: 2rem auto 4rem;
+  padding: 1.4rem;
+  border: 1px solid rgb(96 165 250 / 32%);
+  border-radius: 1.25rem;
+  background: radial-gradient(circle at 90% 15%, rgb(59 130 246 / 16%), transparent 38%), linear-gradient(135deg, #101b31, #0b1324);
+  box-shadow: 0 20px 48px rgb(1 6 18 / 38%);
+}
+.reader-scroll > .reader-chapter-complete { width: 100%; margin-block: 1.25rem 2rem; }
+.reader-chapter-complete__icon { width: 2.8rem; height: 2.8rem; display: grid; place-items: center; border-radius: .85rem; background: var(--accent-soft); color: #93c5fd; }
+.reader-chapter-complete__icon svg { width: 1.3rem; height: 1.3rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.reader-chapter-complete__copy { min-width: 0; }
+.reader-chapter-complete__copy > span { color: #8eb8ff; font-size: .65rem; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.reader-chapter-complete__copy h2 { margin: .3rem 0 0; font-size: clamp(1.05rem, 2vw, 1.35rem); letter-spacing: -.025em; }
+.reader-chapter-complete__copy p { margin: .35rem 0 0; color: var(--muted); font-size: .76rem; line-height: 1.5; }
+.reader-chapter-complete > .button { white-space: nowrap; }
+.reader-controls button.reader-controls__continue { background: var(--accent); color: white; box-shadow: 0 6px 18px rgb(37 99 235 / 28%); }
+.reader-controls button.reader-controls__continue:hover { background: var(--accent-hover); }
+
+@media (max-width: 680px) {
+  .reader-chapter-complete { grid-template-columns: auto minmax(0, 1fr); gap: .9rem; margin-block: 1.25rem 3rem; padding: 1.1rem; border-radius: 1rem; }
+  .reader-chapter-complete > .button { grid-column: 1 / -1; width: 100%; }
+}
