@@ -4,6 +4,7 @@ import {
   getMangaFeed,
   getTags,
   listManga,
+  listTopManga,
   searchManga,
 } from '../api/mangaApi.js'
 import type { MangaProvider } from './MangaProvider.js'
@@ -17,4 +18,5 @@ export const mangaDexProvider: MangaProvider = {
   getMangaFeed,
   getChapterPages,
   getTags,
+  listTopManga,
 }

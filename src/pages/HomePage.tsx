@@ -3,12 +3,15 @@ import { Link } from 'react-router-dom'
 import MangaCard from '../components/MangaCard.jsx'
 import MangaSection from '../components/MangaSection.jsx'
 import Pagination from '../components/Pagination.jsx'
+import RankColumn from '../components/RankColumn.jsx'
+import RecentlyReadMenu from '../components/RecentlyReadMenu.jsx'
 import StatusPanel from '../components/StatusPanel.jsx'
+import TopTenPanel from '../components/TopTenPanel.jsx'
 import SparklesText from '../components/ui/SparklesText.jsx'
 import { useMangaList, useTags } from '../hooks/useMangaQueries.js'
 import { useReadingProgress } from '../context/ReadingProgressContext.jsx'
 import { seededShuffle } from '../utils/manga.js'
-import type { Manga, MangaTag, ProgressEntry, ReadingProgressValue } from '../types/manga.js'
+import type { Manga, MangaTag, ReadingProgressValue } from '../types/manga.js'
 
 const CATEGORIES = [
   { name: 'Action' },
@@ -17,19 +20,27 @@ const CATEGORIES = [
   { name: 'Drama' },
 ]
 
-interface CategorySectionProps {
+interface CategoryColumnProps {
   category: { name: string }
   tags: MangaTag[]
-  progressByManga: Record<string, ProgressEntry>
 }
 
-function CategorySection({ category, tags, progressByManga }: CategorySectionProps) {
+function CategoryColumn({ category, tags }: CategoryColumnProps) {
   const tag = tags.find((item) => item.name.toLowerCase() === category.name.toLowerCase())
   const query = useMangaList(
-    { includedTagIds: tag ? [tag.id] : [], sort: 'popularity', limit: 12 },
+    { includedTagIds: tag ? [tag.id] : [], sort: 'popularity', limit: 6 },
     { enabled: Boolean(tag) },
   )
-  return <MangaSection action={<Link to={`/browse?tag=${tag?.id || ''}`}>View all</Link>} progressByManga={progressByManga} query={{ ...query, isLoading: !tag || query.isLoading }} title={category.name} />
+  return (
+    <RankColumn
+      error={query.isError ? query.error : null}
+      isLoading={!tag || query.isLoading}
+      items={query.data?.items || []}
+      onRetry={query.refetch}
+      title={category.name}
+      viewAllHref={`/browse?tag=${tag?.id || ''}`}
+    />
+  )
 }
 
 export default function HomePage() {
@@ -81,22 +92,30 @@ export default function HomePage() {
 
       <div className="container home-content">
         {recentManga.length > 0 && (
-          <section className="content-section">
-            <div className="section-heading"><h2>Recently read</h2></div>
-            <div className="manga-row">{recentManga.map((manga) => <MangaCard key={manga.id} manga={manga} progress={progressByManga[manga.id]} />)}</div>
-          </section>
+          <div className="home-content__utility">
+            <RecentlyReadMenu items={recentManga} progressByManga={progressByManga} />
+          </div>
         )}
 
-        <MangaSection progressByManga={progressByManga} query={{ ...recommendations, data: dailyRecommendations }} title="For You" action={<Link to="/browse?sort=popularity">More picks</Link>} />
         <div id="latest"><MangaSection progressByManga={progressByManga} query={latest} title="Latest Updates" action={<Link to="/browse?sort=latest">View all</Link>} /></div>
+        <MangaSection progressByManga={progressByManga} query={{ ...recommendations, data: dailyRecommendations }} title="For You" action={<Link to="/browse?sort=popularity">More picks</Link>} />
         {/* <MangaSection progressByManga={progressByManga} query={manhwa} title="Popular Manhwa" action={<Link to="/browse?type=manhwa&sort=popularity">View all manhwa</Link>} /> */}
-        {CATEGORIES.map((category) => <CategorySection category={category} key={category.name} progressByManga={progressByManga} tags={tags} />)}
+        <section className="content-section">
+          <div className="rank-columns">
+            {CATEGORIES.map((category) => <CategoryColumn category={category} key={category.name} tags={tags} />)}
+          </div>
+        </section>
 
         <section className="content-section">
-          <div className="section-heading"><div><h2>All Titles</h2><p>Browse manga and manhwa from the MangaDex catalog</p></div><Link to="/browse">Advanced filters</Link></div>
-          {allManga.isLoading && <div className="manga-grid">{Array.from({ length: 12 }, (_, index) => <div className="manga-card skeleton-card" key={index} />)}</div>}
-          {allManga.isError && <StatusPanel error={allManga.error} onRetry={allManga.refetch} />}
-          {allManga.data && <><div className="manga-grid">{allManga.data.items.map((manga: Manga) => <MangaCard key={manga.id} manga={manga} progress={progressByManga[manga.id]} />)}</div><Pagination limit={18} onChange={(page: number) => { setAllPage(page); document.querySelector('.content-section:last-child')?.scrollIntoView({ behavior: 'smooth' }) }} page={allPage} total={allManga.data.total} /></>}
+          <div className="all-titles-layout">
+            <div className="all-titles-main">
+              <div className="section-heading"><div><h2>All Titles</h2><p>Browse manga and manhwa from the MangaDex catalog</p></div><Link to="/browse">Advanced filters</Link></div>
+              {allManga.isLoading && <div className="manga-grid">{Array.from({ length: 12 }, (_, index) => <div className="manga-card skeleton-card" key={index} />)}</div>}
+              {allManga.isError && <StatusPanel error={allManga.error} onRetry={allManga.refetch} />}
+              {allManga.data && <><div className="manga-grid">{allManga.data.items.map((manga: Manga) => <MangaCard key={manga.id} manga={manga} progress={progressByManga[manga.id]} />)}</div><Pagination limit={18} onChange={(page: number) => { setAllPage(page); document.querySelector('.content-section:last-child')?.scrollIntoView({ behavior: 'smooth' }) }} page={allPage} total={allManga.data.total} /></>}
+            </div>
+            <TopTenPanel />
+          </div>
         </section>
       </div>
     </>
