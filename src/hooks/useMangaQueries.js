@@ -57,3 +57,12 @@ export function useTags() {
     staleTime: 24 * 60 * 60 * 1000,
   })
 }
+
+export function useTopManga(period = 'week', limit = 10) {
+  return useQuery({
+    queryKey: ['manga', 'top', period, limit],
+    queryFn: ({ signal }) => mangaDexProvider.listTopManga({ period, limit, signal }),
+    placeholderData: (previous) => previous,
+    staleTime: 5 * 60 * 1000,
+  })
+}
