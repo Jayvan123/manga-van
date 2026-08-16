@@ -35,6 +35,8 @@ export default function ReaderPage() {
   const touchStartDistance = useRef<number | null>(null)
   const baseZoom = useRef<number>(100)
   const minSwipeDistance = 50
+  const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const mouseIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [imageFailed, setImageFailed] = useState(false)
   const [pagedUseDataSaver, setPagedUseDataSaver] = useState(false)
@@ -173,6 +175,23 @@ export default function ReaderPage() {
     return useDataSaver ? fallbackUrl : pageUrl
   }
 
+  /** Hides the UI immediately and resets the idle timer so controls reappear after 1.5 s of inactivity. */
+  const triggerSmartUIHide = useCallback(() => {
+    setIsHeaderHidden(true)
+    if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+    scrollIdleTimer.current = setTimeout(() => {
+      setIsHeaderHidden(false)
+    }, 1500)
+  }, [])
+
+  /** Restores the UI immediately (e.g. on mouse move / pointer activity). */
+  const triggerSmartUIRestore = useCallback(() => {
+    if (mouseIdleTimer.current) clearTimeout(mouseIdleTimer.current)
+    mouseIdleTimer.current = setTimeout(() => {
+      setIsHeaderHidden(false)
+    }, 80)
+  }, [])
+
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 1) {
       touchStartX.current = e.touches[0].clientX
@@ -191,6 +210,14 @@ export default function ReaderPage() {
     if (e.touches.length === 1) {
       touchEndX.current = e.touches[0].clientX
       touchEndY.current = e.touches[0].clientY
+      // Finger dragging up (content scrolling down) hides the header;
+      // dragging down (scrolling back up) brings it straight back.
+      const deltaY = (touchStartY.current ?? 0) - e.touches[0].clientY
+      if (deltaY > 8) triggerSmartUIHide()
+      else if (deltaY < -8) {
+        setIsHeaderHidden(false)
+        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+      }
     } else if (e.touches.length === 2 && touchStartDistance.current !== null) {
       // Prevent browser default zoom
       if (e.cancelable) e.preventDefault()
@@ -229,15 +256,6 @@ export default function ReaderPage() {
             goToPage(page - 1)
           }
         }
-      } else if (!isHorizontalSwipe && readingMode === 'paged') {
-        const isUpSwipe = distanceY > minSwipeDistance
-        const isDownSwipe = distanceY < -minSwipeDistance
-
-        if (isUpSwipe) {
-          setIsHeaderHidden(true)
-        } else if (isDownSwipe) {
-          setIsHeaderHidden(false)
-        }
       }
     }
     touchStartX.current = null
@@ -254,12 +272,13 @@ export default function ReaderPage() {
     const updateFullscreenState = () => {
       const fullscreen = Boolean(document.fullscreenElement)
       setIsFullscreen(fullscreen)
-      if (!fullscreen) setIsHeaderHidden(false)
     }
     document.addEventListener('fullscreenchange', updateFullscreenState)
     return () => document.removeEventListener('fullscreenchange', updateFullscreenState)
   }, [])
 
+  // Smart UI: hide controls while the user is actively scrolling, restore after 1.5 s idle.
+  // Works in both scroll mode and paged mode, fullscreen or not.
   useEffect(() => {
     let previousScrollTop = 0
     const handleScroll = () => {
@@ -268,29 +287,60 @@ export default function ReaderPage() {
         : window.scrollY || document.documentElement.scrollTop
 
       const difference = currentScrollTop - previousScrollTop
-      
-      if (currentScrollTop < 24 || difference < -5) {
-        setIsHeaderHidden(false)
-      } else if (difference > 5 && currentScrollTop > 80) {
-        setIsHeaderHidden(true)
-      }
-      
       previousScrollTop = currentScrollTop
+
+      // Near the very top → always restore immediately
+      if (currentScrollTop < 24) {
+        setIsHeaderHidden(false)
+        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+        return
+      }
+
+      // Scrolling up → bring the header straight back
+      if (difference < -3) {
+        setIsHeaderHidden(false)
+        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+        return
+      }
+
+      // Scrolling down → hide, then auto-restore after a short idle
+      if (difference > 3) {
+        setIsHeaderHidden(true)
+        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+        scrollIdleTimer.current = setTimeout(() => setIsHeaderHidden(false), 1500)
+      }
     }
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    const reader = readerRef.current
-    if (reader) {
-      reader.addEventListener('scroll', handleScroll, { passive: true })
+    // Desktop: wheel events trigger hide in paged mode (no scroll events there);
+    // scrolling back up brings the header straight back.
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY > 4) triggerSmartUIHide()
+      else if (e.deltaY < -4) {
+        setIsHeaderHidden(false)
+        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+      }
     }
+
+    // Desktop: mouse move restores the header so users can access controls
+    const handleMouseMove = () => triggerSmartUIRestore()
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    window.addEventListener('wheel', handleWheel, { passive: true })
+    window.addEventListener('mousemove', handleMouseMove, { passive: true })
+    const reader = readerRef.current
+    if (reader) reader.addEventListener('scroll', handleScroll, { passive: true })
+    if (reader) reader.addEventListener('wheel', handleWheel, { passive: true })
 
     return () => {
       window.removeEventListener('scroll', handleScroll)
-      if (reader) {
-        reader.removeEventListener('scroll', handleScroll)
-      }
+      window.removeEventListener('wheel', handleWheel)
+      window.removeEventListener('mousemove', handleMouseMove)
+      if (reader) reader.removeEventListener('scroll', handleScroll)
+      if (reader) reader.removeEventListener('wheel', handleWheel)
+      if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+      if (mouseIdleTimer.current) clearTimeout(mouseIdleTimer.current)
     }
-  }, [])
+  }, [triggerSmartUIHide, triggerSmartUIRestore])
 
   useEffect(() => {
     if (!isChapterPanelOpen) return
@@ -459,17 +509,18 @@ export default function ReaderPage() {
             <span aria-label={`Page ${page} of ${pageCount}`} className="reader-page-status">{page} / {pageCount} pages</span>
           </div>
         </div>
-        <div
-          aria-label={`${Math.round(chapterProgress)}% of chapter read`}
-          aria-valuemax={100}
-          aria-valuemin={0}
-          aria-valuenow={Math.round(chapterProgress)}
-          className="reader-progress"
-          role="progressbar"
-        >
-          <span style={{ width: `${chapterProgress}%` }} />
-        </div>
       </header>
+      {/* Progress bar always visible at top, independent of header visibility */}
+      <div
+        aria-label={`${Math.round(chapterProgress)}% of chapter read`}
+        aria-valuemax={100}
+        aria-valuemin={0}
+        aria-valuenow={Math.round(chapterProgress)}
+        className="reader-progress"
+        role="progressbar"
+      >
+        <span style={{ width: `${chapterProgress}%` }} />
+      </div>
 
       {isChapterPanelOpen && (
         <div className="reader-chapter-overlay">

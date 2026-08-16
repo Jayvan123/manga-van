@@ -213,8 +213,13 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 
 .reader-page { min-height: 100vh; background: #050914; }
 .reader-page:fullscreen { overflow-y: auto; }
-.reader-header { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid var(--line); background: rgb(5 9 20 / 91%); box-shadow: 0 10px 32px rgb(0 0 0 / 20%); backdrop-filter: blur(18px); transition: transform .28s ease; }
-.reader-page.is-header-hidden .reader-header { transform: translateY(-100%); }
+.reader-header { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid var(--line); background: rgb(5 9 20 / 91%); box-shadow: 0 10px 32px rgb(0 0 0 / 20%); backdrop-filter: blur(18px); transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
+/* Whole header (border, background, shadow) slides up together; the fixed progress bar sits outside it and always remains visible */
+.reader-page.is-header-hidden .reader-header { transform: translateY(-100%); opacity: 0; pointer-events: none; }
+/* Smart UI: also hide floating nav buttons and suppress scrollbars while hidden */
+.reader-page.is-header-hidden .reader-nav-btn { opacity: 0; pointer-events: none; }
+.reader-page.is-header-hidden { scrollbar-width: none; }
+.reader-page.is-header-hidden::-webkit-scrollbar { display: none; }
 .reader-header__top { min-height: 4.75rem; display: grid; grid-template-columns: auto minmax(180px, 1fr) auto; align-items: center; gap: 1rem; padding: .65rem 1.15rem; }
 .reader-back { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border: 1px solid var(--line); border-radius: .75rem; background: #101a2e; transition: border-color .2s, background .2s; }
 .reader-back:hover { border-color: #486086; background: #182640; }
@@ -232,7 +237,8 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .reader-fullscreen, .reader-chapters-toggle { min-height: 2.65rem; display: inline-flex; align-items: center; gap: .5rem; padding: .55rem .8rem; border: 1px solid var(--line); border-radius: .75rem; background: #101a2e; color: #d4dceb; font-size: .75rem; font-weight: 700; transition: border-color .2s, background .2s; }
 .reader-fullscreen:hover, .reader-chapters-toggle:hover { border-color: #486086; background: #182640; }
 .reader-page-status { min-width: 5.5rem; color: var(--muted); font-size: .73rem; font-variant-numeric: tabular-nums; text-align: right; }
-.reader-progress { height: 3px; overflow: hidden; background: #1b2942; }
+/* Progress bar: always fixed at the very top of the viewport, never hidden */
+.reader-progress { position: fixed; top: 0; left: 0; right: 0; z-index: 22; height: 3px; overflow: hidden; background: transparent; }
 .reader-progress span { height: 100%; display: block; border-radius: 0 999px 999px 0; background: linear-gradient(90deg, #2563eb, #60a5fa); box-shadow: 0 0 12px rgb(59 130 246 / 65%); transition: width .25s ease; }
 .reader-canvas { min-height: calc(100vh - 4.95rem); display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 4rem 2rem; cursor: pointer; touch-action: none; }
 .reader-canvas > img { width: auto; max-width: min(100%, 1200px); max-height: calc(100vh - 8rem); object-fit: contain; box-shadow: 0 24px 60px rgb(0 0 0 / 55%); animation: reader-page-fade 0.22s ease-out; }
@@ -322,7 +328,7 @@ button:disabled { cursor: not-allowed; opacity: .38; }
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: background 0.2s, transform 0.2s, opacity 0.2s;
+  transition: background 0.2s, transform 0.2s, opacity 0.3s ease;
   box-shadow: 0 8px 32px rgb(0 0 0 / 50%);
 }
 .reader-nav-btn:hover:not(:disabled) {
@@ -667,6 +673,9 @@ button:disabled { cursor: not-allowed; opacity: .38; }
   .fallback-link .button { width: 100%; }
 
   .reader-page { min-height: 100dvh; }
+  /* On mobile the fixed progress bar starts at the notch edge */
+  .reader-progress { top: env(safe-area-inset-top, 0px); }
+  /* Keep header content clear of the notch and the fixed status bar above it */
   .reader-header { padding-top: env(safe-area-inset-top); }
   .reader-header__top { min-height: 0; grid-template-columns: auto minmax(0, 1fr); gap: .55rem .7rem; padding: .55rem .625rem .65rem; }
   .reader-back, .reader-fullscreen, .reader-chapters-toggle { width: 2.75rem; min-height: 2.75rem; }
