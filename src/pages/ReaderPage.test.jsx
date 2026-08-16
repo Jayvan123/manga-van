@@ -27,7 +27,7 @@ vi.mock('../hooks/useMangaQueries.js', () => ({
     isError: false,
   }),
   useChapterPages: () => ({
-    data: { pages: ['/1.jpg', '/2.jpg', '/3.jpg'], dataSaverPages: ['/ds1.jpg', '/ds2.jpg', '/ds3.jpg'] },
+    data: { hash: 'mockhash', pages: ['/1.jpg', '/2.jpg', '/3.jpg'], dataSaverPages: ['/ds1.jpg', '/ds2.jpg', '/ds3.jpg'] },
     isLoading: false,
     isError: false,
     refetch: refetchPages,
@@ -43,30 +43,30 @@ describe('ReaderPage', () => {
   it('supports keyboard page navigation and boundary shortcuts', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1&mode=paged']}>
         <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
       </MemoryRouter>,
     )
 
-    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3 pages')).toBeInTheDocument()
     expect(screen.getByText('Reading now · Chapter 1 of 2')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '33')
     await user.keyboard('{ArrowRight}')
-    expect(screen.getByText('Page 2 of 3')).toBeInTheDocument()
+    expect(screen.getByText('2 / 3 pages')).toBeInTheDocument()
     await user.keyboard('{End}')
-    expect(screen.getByText('Page 3 of 3')).toBeInTheDocument()
+    expect(screen.getByText('3 / 3 pages')).toBeInTheDocument()
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100')
     expect(screen.getByRole('button', { name: 'Read next chapter' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Next chapter' })).toBeInTheDocument()
     await user.keyboard('{Home}')
-    expect(screen.getByText('Page 1 of 3')).toBeInTheDocument()
+    expect(screen.getByText('1 / 3 pages')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Read next chapter' })).not.toBeInTheDocument()
   })
 
   it('switches between page and scroll reading modes', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1&mode=paged']}>
         <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
       </MemoryRouter>,
     )
@@ -85,7 +85,7 @@ describe('ReaderPage', () => {
   it('opens a chapter drawer and removes the old chapter footer navigation', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1&mode=paged']}>
         <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
       </MemoryRouter>,
     )
@@ -105,14 +105,24 @@ describe('ReaderPage', () => {
   it('falls back to data-saver pages and refreshes failed MangaDex sources', async () => {
     const user = userEvent.setup()
     render(
-      <MemoryRouter initialEntries={['/read/m1/c1?page=1']}>
+      <MemoryRouter initialEntries={['/read/m1/c1?page=1&mode=paged']}>
         <Routes><Route element={<ReaderPage />} path="/read/:mangaId/:chapterId" /></Routes>
       </MemoryRouter>,
     )
 
+    // Stage 1 -> Stage 2
     fireEvent.error(screen.getByRole('img'))
     expect(screen.getByRole('img')).toHaveAttribute('src', '/ds1.jpg')
 
+    // Stage 2 -> Stage 3
+    fireEvent.error(screen.getByRole('img'))
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://uploads.mangadex.org/data/mockhash/1.jpg')
+
+    // Stage 3 -> Stage 4
+    fireEvent.error(screen.getByRole('img'))
+    expect(screen.getByRole('img')).toHaveAttribute('src', 'https://uploads.mangadex.org/data-saver/mockhash/ds1.jpg')
+
+    // Stage 4 -> Permanent Failure
     fireEvent.error(screen.getByRole('img'))
     expect(screen.getByText('This page could not be loaded from either MangaDex image source.')).toBeInTheDocument()
 

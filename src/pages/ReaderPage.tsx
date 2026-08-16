@@ -27,9 +27,18 @@ export default function ReaderPage() {
   const feed = useMangaFeed(mangaId, requestedLanguage === 'all' ? null : requestedLanguage)
   const pages = useChapterPages(chapterId)
   const { getProgress, markChapterComplete, saveProgress } = useReadingProgress() as ReadingProgressValue
+  
+  const touchStartX = useRef<number | null>(null)
+  const touchEndX = useRef<number | null>(null)
+  const touchStartDistance = useRef<number | null>(null)
+  const baseZoom = useRef<number>(100)
+  const minSwipeDistance = 50
+
   const [imageFailed, setImageFailed] = useState(false)
   const [pagedUseDataSaver, setPagedUseDataSaver] = useState(false)
+  const [pagedUseOfficialFallback, setPagedUseOfficialFallback] = useState(false)
   const [scrollDataSaverPages, setScrollDataSaverPages] = useState<Set<number>>(() => new Set())
+  const [scrollOfficialFallbackPages, setScrollOfficialFallbackPages] = useState<Set<number>>(() => new Set())
   const [failedScrollPages, setFailedScrollPages] = useState<Set<number>>(() => new Set())
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [isHeaderHidden, setIsHeaderHidden] = useState(false)
@@ -37,8 +46,16 @@ export default function ReaderPage() {
   const [readingMode, setReadingMode] = useState<ReadingMode>(() => {
     const requestedMode = params.get('mode')
     if (requestedMode === 'scroll' || requestedMode === 'paged') return requestedMode
-    return window.localStorage.getItem(READER_MODE_KEY) === 'scroll' ? 'scroll' : 'paged'
+    return window.localStorage.getItem(READER_MODE_KEY) === 'paged' ? 'paged' : 'scroll'
   })
+  const [zoom, setZoom] = useState<number>(() => {
+    const savedZoom = window.localStorage.getItem('mangavan:reader-zoom')
+    return savedZoom ? Number.parseInt(savedZoom, 10) : 100
+  })
+
+  useEffect(() => {
+    window.localStorage.setItem('mangavan:reader-zoom', String(zoom))
+  }, [zoom])
   const chapters = useMemo(() => [...(feed.data || [])].sort(compareChapters), [feed.data])
   const chapterIndex = chapters.findIndex((chapter) => chapter.id === chapterId)
   const chapter = chapters[chapterIndex]
@@ -54,6 +71,7 @@ export default function ReaderPage() {
     const bounded = Math.min(Math.max(nextPage, 1), Math.max(pageCount, 1))
     setImageFailed(false)
     setPagedUseDataSaver(false)
+    setPagedUseOfficialFallback(false)
     const nextParams = new URLSearchParams(params)
     nextParams.set('page', String(bounded))
     nextParams.set('lang', requestedLanguage)
@@ -92,6 +110,7 @@ export default function ReaderPage() {
       if (pageNumber === page) {
         setImageFailed(false)
         setPagedUseDataSaver(false)
+        setPagedUseOfficialFallback(false)
       }
       setFailedScrollPages((failed) => {
         const next = new Set(failed)
@@ -103,7 +122,108 @@ export default function ReaderPage() {
         next.delete(pageNumber)
         return next
       })
+      setScrollOfficialFallbackPages((fallbacks) => {
+        const next = new Set(fallbacks)
+        next.delete(pageNumber)
+        return next
+      })
     }
+  }
+
+  const getPagedSrc = () => {
+    if (!pages.data) return ''
+    const hash = pages.data.hash
+    const originalUrl = pages.data.pages[page - 1]
+    const dataSaverUrl = pages.data.dataSaverPages?.[page - 1] || originalUrl
+
+    if (pagedUseOfficialFallback) {
+      if (pagedUseDataSaver) {
+        const filename = dataSaverUrl.split('/').pop()
+        return `https://uploads.mangadex.org/data-saver/${hash}/${filename}`
+      } else {
+        const filename = originalUrl.split('/').pop()
+        return `https://uploads.mangadex.org/data/${hash}/${filename}`
+      }
+    }
+
+    return pagedUseDataSaver ? dataSaverUrl : originalUrl
+  }
+
+  const getScrollSrc = (pageUrl: string, index: number) => {
+    if (!pages.data) return ''
+    const pageNumber = index + 1
+    const hash = pages.data.hash
+    const fallbackUrl = pages.data.dataSaverPages?.[index] || pageUrl
+
+    const useDataSaver = scrollDataSaverPages.has(pageNumber)
+    const useOfficial = scrollOfficialFallbackPages.has(pageNumber)
+
+    if (useOfficial) {
+      if (useDataSaver) {
+        const filename = fallbackUrl.split('/').pop()
+        return `https://uploads.mangadex.org/data-saver/${hash}/${filename}`
+      } else {
+        const filename = pageUrl.split('/').pop()
+        return `https://uploads.mangadex.org/data/${hash}/${filename}`
+      }
+    }
+
+    return useDataSaver ? fallbackUrl : pageUrl
+  }
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 1) {
+      touchStartX.current = e.touches[0].clientX
+      touchEndX.current = e.touches[0].clientX
+    } else if (e.touches.length === 2) {
+      const xDist = e.touches[0].clientX - e.touches[1].clientX
+      const yDist = e.touches[0].clientY - e.touches[1].clientY
+      touchStartDistance.current = Math.hypot(xDist, yDist)
+      baseZoom.current = zoom
+    }
+  }
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
+    if (e.touches.length === 1) {
+      touchEndX.current = e.touches[0].clientX
+    } else if (e.touches.length === 2 && touchStartDistance.current !== null) {
+      // Prevent browser default zoom
+      if (e.cancelable) e.preventDefault()
+      const xDist = e.touches[0].clientX - e.touches[1].clientX
+      const yDist = e.touches[0].clientY - e.touches[1].clientY
+      const currentDistance = Math.hypot(xDist, yDist)
+      
+      const ratio = currentDistance / touchStartDistance.current
+      const targetZoom = Math.min(Math.max(Math.round(baseZoom.current * ratio), 50), 200)
+      setZoom(targetZoom)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    if (touchStartDistance.current !== null) {
+      touchStartDistance.current = null
+    } else {
+      if (readingMode === 'paged') {
+        if (touchStartX.current === null || touchEndX.current === null) return
+        const distance = touchStartX.current - touchEndX.current
+        const isLeftSwipe = distance > minSwipeDistance
+        const isRightSwipe = distance < -minSwipeDistance
+
+        if (isLeftSwipe) {
+          if (page < pageCount) {
+            goToPage(page + 1)
+          } else if (nextChapter) {
+            navigate(chapterUrl(nextChapter.id))
+          }
+        } else if (isRightSwipe) {
+          if (page > 1) {
+            goToPage(page - 1)
+          }
+        }
+      }
+    }
+    touchStartX.current = null
+    touchEndX.current = null
   }
 
   useEffect(() => {
@@ -121,20 +241,36 @@ export default function ReaderPage() {
   }, [])
 
   useEffect(() => {
-    if (!isFullscreen) return
-    const reader = readerRef.current
-    if (!reader) return
-    let previousScrollTop = reader.scrollTop
-    const handleFullscreenScroll = () => {
-      const currentScrollTop = reader.scrollTop
+    let previousScrollTop = 0
+    const handleScroll = () => {
+      const currentScrollTop = document.fullscreenElement
+        ? readerRef.current?.scrollTop || 0
+        : window.scrollY || document.documentElement.scrollTop
+
       const difference = currentScrollTop - previousScrollTop
-      if (currentScrollTop < 24 || difference < -5) setIsHeaderHidden(false)
-      else if (difference > 5 && currentScrollTop > 80) setIsHeaderHidden(true)
+      
+      if (currentScrollTop < 24 || difference < -5) {
+        setIsHeaderHidden(false)
+      } else if (difference > 5 && currentScrollTop > 80) {
+        setIsHeaderHidden(true)
+      }
+      
       previousScrollTop = currentScrollTop
     }
-    reader.addEventListener('scroll', handleFullscreenScroll, { passive: true })
-    return () => reader.removeEventListener('scroll', handleFullscreenScroll)
-  }, [isFullscreen])
+
+    window.addEventListener('scroll', handleScroll, { passive: true })
+    const reader = readerRef.current
+    if (reader) {
+      reader.addEventListener('scroll', handleScroll, { passive: true })
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll)
+      if (reader) {
+        reader.removeEventListener('scroll', handleScroll)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (!isChapterPanelOpen) return
@@ -276,6 +412,11 @@ export default function ReaderPage() {
               <button aria-pressed={readingMode === 'paged'} onClick={() => changeReadingMode('paged')} type="button">Page</button>
               <button aria-pressed={readingMode === 'scroll'} onClick={() => changeReadingMode('scroll')} type="button">Scroll</button>
             </div>
+            <div aria-label="Zoom controls" className="reader-zoom-controls" role="group">
+              <button onClick={() => setZoom(z => Math.max(z - 10, 50))} type="button" aria-label="Zoom out">−</button>
+              <span className="reader-zoom-percentage">{zoom}%</span>
+              <button onClick={() => setZoom(z => Math.min(z + 10, 200))} type="button" aria-label="Zoom in">+</button>
+            </div>
             <button
               aria-controls="reader-chapter-panel"
               aria-expanded={isChapterPanelOpen}
@@ -323,24 +464,30 @@ export default function ReaderPage() {
               <strong>{chapters.length} chapters</strong>
             </div>
             <nav aria-label="All chapters" className="reader-chapter-list">
-              {chapters.map((chapterItem, index) => (
-                <button
-                  aria-current={chapterItem.id === chapterId ? 'page' : undefined}
-                  key={chapterItem.id}
-                  onClick={() => {
-                    setIsChapterPanelOpen(false)
-                    navigate(chapterUrl(chapterItem.id))
-                  }}
-                  type="button"
-                >
-                  <span className="reader-chapter-number">{String(index + 1).padStart(2, '0')}</span>
-                  <span className="reader-chapter-card__body">
-                    <strong>{chapterLabel(chapterItem)}</strong>
-                    <span>{chapterItem.title || chapterItem.group || 'MangaDex release'}</span>
-                  </span>
-                  {chapterItem.id === chapterId && <span className="reader-chapter-current">Reading</span>}
-                </button>
-              ))}
+              {chapters.map((chapterItem, index) => {
+                const isCurrent = chapterItem.id === chapterId
+                const isCompleted = saved?.completedChapterIds?.includes(chapterItem.id)
+                return (
+                  <button
+                    aria-current={isCurrent ? 'page' : undefined}
+                    key={chapterItem.id}
+                    onClick={() => {
+                      setIsChapterPanelOpen(false)
+                      navigate(chapterUrl(chapterItem.id))
+                    }}
+                    type="button"
+                    className={isCompleted ? 'is-completed' : ''}
+                  >
+                    <span className="reader-chapter-number">{String(index + 1).padStart(2, '0')}</span>
+                    <span className="reader-chapter-card__body">
+                      <strong>{chapterLabel(chapterItem)}</strong>
+                      <span>{chapterItem.title || chapterItem.group || 'MangaDex release'}</span>
+                    </span>
+                    {isCurrent && <span className="reader-chapter-current">Reading</span>}
+                    {!isCurrent && isCompleted && <span className="reader-chapter-done">Done</span>}
+                  </button>
+                )
+              })}
             </nav>
             <p className="reader-chapter-shortcuts">M changes reading mode · F toggles full screen</p>
           </aside>
@@ -349,25 +496,84 @@ export default function ReaderPage() {
 
       {readingMode === 'paged' ? (
         <>
-          <div className="reader-canvas reader-canvas--paged" onClick={handleReaderClick} role="presentation">
+          <div 
+            className="reader-canvas reader-canvas--paged" 
+            onClick={handleReaderClick} 
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            role="presentation"
+          >
             {!imageFailed
               ? <img
                   alt={`${chapterLabel(chapter)}, page ${page}`}
-                  key={`${pages.data.pages[page - 1]}:${pagedUseDataSaver ? 'data-saver' : 'original'}`}
+                  key={`${pages.data.pages[page - 1]}:${pagedUseDataSaver ? 'data-saver' : 'original'}:${pagedUseOfficialFallback ? 'official' : 'at-home'}`}
+                  style={{ maxWidth: `min(100%, ${1200 * (zoom / 100)}px)` }}
                   onError={() => {
-                    const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
-                    if (!pagedUseDataSaver && fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) setPagedUseDataSaver(true)
-                    else setImageFailed(true)
+                    if (!pagedUseDataSaver && !pagedUseOfficialFallback) {
+                      const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
+                      if (fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) {
+                        setPagedUseDataSaver(true)
+                      } else {
+                        setPagedUseOfficialFallback(true)
+                      }
+                    } else if (pagedUseDataSaver && !pagedUseOfficialFallback) {
+                      setPagedUseOfficialFallback(true)
+                      setPagedUseDataSaver(false)
+                    } else if (!pagedUseDataSaver && pagedUseOfficialFallback) {
+                      const fallbackUrl = pages.data?.dataSaverPages?.[page - 1]
+                      if (fallbackUrl && fallbackUrl !== pages.data?.pages[page - 1]) {
+                        setPagedUseDataSaver(true)
+                      } else {
+                        setImageFailed(true)
+                      }
+                    } else {
+                      setImageFailed(true)
+                    }
                   }}
                   referrerPolicy="no-referrer"
-                  src={pagedUseDataSaver ? pages.data.dataSaverPages?.[page - 1] || pages.data.pages[page - 1] : pages.data.pages[page - 1]}
+                  src={getPagedSrc()}
                 />
               : <StatusPanel error={new Error('Image failed')} message="This page could not be loaded from either MangaDex image source." onRetry={() => void retryPageImage(page)} />}
+            
+            <button 
+              className="reader-nav-btn reader-nav-btn--prev" 
+              disabled={page <= 1} 
+              onClick={(e) => { e.stopPropagation(); goToPage(page - 1); }} 
+              type="button"
+              aria-label="Previous page"
+            >
+              <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m12.5 4-6 6 6 6" /></svg>
+            </button>
+            
+            <button 
+              className="reader-nav-btn reader-nav-btn--next" 
+              disabled={page >= pageCount && !nextChapter}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (page >= pageCount) {
+                  if (nextChapter) navigate(chapterUrl(nextChapter.id));
+                } else {
+                  goToPage(page + 1);
+                }
+              }} 
+              type="button"
+              aria-label={page >= pageCount ? "Next chapter" : "Next page"}
+            >
+              <svg aria-hidden="true" viewBox="0 0 20 20"><path d="m7.5 4 6 6-6 6" /></svg>
+            </button>
           </div>
           {page === pageCount && chapterCompleteCard}
         </>
       ) : (
-        <div className="reader-scroll" aria-label={`${chapterLabel(chapter)} pages`}>
+        <div 
+          className="reader-scroll" 
+          style={{ width: `min(100%, ${980 * (zoom / 100)}px)` }} 
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          aria-label={`${chapterLabel(chapter)} pages`}
+        >
           {pages.data.pages.map((pageUrl, index) => {
             const pageNumber = index + 1
             const fallbackUrl = pages.data.dataSaverPages?.[index]
@@ -377,14 +583,35 @@ export default function ReaderPage() {
                 {!failedScrollPages.has(pageNumber)
                   ? <img
                       alt={`${chapterLabel(chapter)}, page ${pageNumber}`}
-                      key={`${pageUrl}:${useDataSaver ? 'data-saver' : 'original'}`}
+                      key={`${pageUrl}:${useDataSaver ? 'data-saver' : 'original'}:${scrollOfficialFallbackPages.has(pageNumber) ? 'official' : 'at-home'}`}
                       loading={pageNumber <= 2 ? 'eager' : 'lazy'}
                       onError={() => {
-                        if (!useDataSaver && fallbackUrl && fallbackUrl !== pageUrl) setScrollDataSaverPages((fallbacks) => new Set(fallbacks).add(pageNumber))
-                        else setFailedScrollPages((failed) => new Set(failed).add(pageNumber))
+                        const useOfficial = scrollOfficialFallbackPages.has(pageNumber)
+                        if (!useDataSaver && !useOfficial) {
+                          if (fallbackUrl && fallbackUrl !== pageUrl) {
+                            setScrollDataSaverPages((prev) => new Set(prev).add(pageNumber))
+                          } else {
+                            setScrollOfficialFallbackPages((prev) => new Set(prev).add(pageNumber))
+                          }
+                        } else if (useDataSaver && !useOfficial) {
+                          setScrollOfficialFallbackPages((prev) => new Set(prev).add(pageNumber))
+                          setScrollDataSaverPages((prev) => {
+                            const next = new Set(prev)
+                            next.delete(pageNumber)
+                            return next
+                          })
+                        } else if (!useDataSaver && useOfficial) {
+                          if (fallbackUrl && fallbackUrl !== pageUrl) {
+                            setScrollDataSaverPages((prev) => new Set(prev).add(pageNumber))
+                          } else {
+                            setFailedScrollPages((prev) => new Set(prev).add(pageNumber))
+                          }
+                        } else {
+                          setFailedScrollPages((prev) => new Set(prev).add(pageNumber))
+                        }
                       }}
                       referrerPolicy="no-referrer"
-                      src={useDataSaver ? fallbackUrl || pageUrl : pageUrl}
+                      src={getScrollSrc(pageUrl, index)}
                     />
                   : <div className="reader-page-error"><strong>Page {pageNumber} could not load</strong><span>Both MangaDex image sources failed.</span><button onClick={() => void retryPageImage(pageNumber)} type="button">Refresh source and retry</button></div>}
                 <figcaption>Page {pageNumber} of {pageCount}</figcaption>
@@ -393,18 +620,6 @@ export default function ReaderPage() {
           })}
           {chapterCompleteCard}
         </div>
-      )}
-
-      {readingMode === 'paged' && (
-        <nav aria-label="Page navigation" className="reader-controls">
-          <button disabled={page <= 1} onClick={() => goToPage(page - 1)} type="button">Previous</button>
-          <span>Page {page} of {pageCount}</span>
-          {page >= pageCount
-            ? nextChapter
-              ? <button className="reader-controls__continue" onClick={() => navigate(chapterUrl(nextChapter.id))} type="button">Next chapter</button>
-              : <button disabled type="button">Latest chapter</button>
-            : <button onClick={() => goToPage(page + 1)} type="button">Next</button>}
-        </nav>
       )}
 
     </main>
