@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import MangaCard from '../components/MangaCard.jsx'
 import MangaSection from '../components/MangaSection.jsx'
@@ -58,7 +58,23 @@ export default function HomePage() {
     const day = new Date().toISOString().slice(0, 10)
     return { ...recommendations.data, items: seededShuffle(recommendations.data.items, `${day}:${favoriteTagIds.join()}`).slice(0, 12) }
   }, [favoriteTagIds, recommendations.data])
-  const featuredManga = dailyRecommendations?.items?.[0] || latest.data?.items?.[0] || allManga.data?.items?.[0]
+  const featuredCoverUrls = useMemo(() => {
+    const list = dailyRecommendations?.items || latest.data?.items || allManga.data?.items || []
+    const urls = list
+      .map((m) => m.coverUrlLarge)
+      .filter((url): url is string => Boolean(url))
+    return [...new Set(urls)].slice(0, 10)
+  }, [dailyRecommendations, latest.data, allManga.data])
+
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+
+  useEffect(() => {
+    if (featuredCoverUrls.length <= 1) return
+    const timer = setInterval(() => {
+      setCurrentImageIndex((prev) => (prev + 1) % featuredCoverUrls.length)
+    }, 1500)
+    return () => clearInterval(timer)
+  }, [featuredCoverUrls])
 
   const recentManga = recentlyRead.map((entry) => ({
     id: entry.mangaId,
@@ -70,15 +86,22 @@ export default function HomePage() {
   return (
     <>
       <section className="hero-banner">
-        {featuredManga?.coverUrlLarge && (
+        {featuredCoverUrls.map((url, idx) => (
           <img
+            key={url}
             alt=""
             aria-hidden="true"
             className="hero-banner__art"
             referrerPolicy="no-referrer"
-            src={featuredManga.coverUrlLarge}
+            src={url}
+            style={{
+              opacity: idx === currentImageIndex ? 0.64 : 0,
+              transform: `scale(1.015) translate3d(${idx === currentImageIndex ? '0' : '20px'}, 0, 0)`,
+              transition: 'opacity 0.8s ease-in-out, transform 0.8s ease-in-out',
+              pointerEvents: idx === currentImageIndex ? 'auto' : 'none',
+            }}
           />
-        )}
+        ))}
         <div className="container hero-banner__content">
           <p className="eyebrow">Read freely. Remember locally.</p>
           <h1><SparklesText sparklesCount={14}>Your next obsession<br />is one chapter away.</SparklesText></h1>
