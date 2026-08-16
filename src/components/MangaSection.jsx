@@ -1,4 +1,5 @@
 import MangaCard from './MangaCard.jsx'
+import ScrollRow from './ScrollRow.jsx'
 import StatusPanel from './StatusPanel.jsx'
 
 export default function MangaSection({ title, icon = null, query, action, progressByManga = {} }) {
@@ -14,9 +15,9 @@ export default function MangaSection({ title, icon = null, query, action, progre
     <section className="content-section">
       <SectionHeading title={title} icon={icon} action={action} />
       {items.length ? (
-        <div className="manga-row">
+        <ScrollRow>
           {items.map((manga, index) => <MangaCard eager={index < 4} key={manga.id} manga={manga} progress={progressByManga[manga.id]} />)}
-        </div>
+        </ScrollRow>
       ) : <StatusPanel compact message="Nothing to show here yet." />}
     </section>
   )
