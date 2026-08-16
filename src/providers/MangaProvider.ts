@@ -4,7 +4,7 @@ export interface MangaListOptions {
   query?: string
   includedTagIds?: string[]
   contentType?: 'all' | 'manga' | 'manhwa'
-  sort?: 'relevance' | 'popularity' | 'latest' | 'alphabetical'
+  sort?: 'relevance' | 'popularity' | 'latest'
   page?: number
   limit?: number
   signal?: AbortSignal

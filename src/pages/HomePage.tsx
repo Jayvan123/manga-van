@@ -4,6 +4,7 @@ import MangaCard from '../components/MangaCard.jsx'
 import MangaSection from '../components/MangaSection.jsx'
 import Pagination from '../components/Pagination.jsx'
 import StatusPanel from '../components/StatusPanel.jsx'
+import SparklesText from '../components/ui/SparklesText.jsx'
 import { useMangaList, useTags } from '../hooks/useMangaQueries.js'
 import { useReadingProgress } from '../context/ReadingProgressContext.jsx'
 import { seededShuffle } from '../utils/manga.js'
@@ -69,11 +70,10 @@ export default function HomePage() {
         )}
         <div className="container hero-banner__content">
           <p className="eyebrow">Read freely. Remember locally.</p>
-          <h1>Your next obsession<br />is one chapter away.</h1>
+          <h1><SparklesText sparklesCount={14}>Your next obsession<br />is one chapter away.</SparklesText></h1>
           <p>Discover manga and Korean manhwa, track your place without an account, and read anywhere.</p>
           <div className="hero-banner__actions">
             <Link className="button button--primary" to="/browse">Explore all</Link>
-            <Link className="button button--ghost" to="/browse?type=manhwa">Browse manhwa</Link>
             <a className="button button--ghost" href="#latest">Latest updates ↓</a>
           </div>
         </div>
@@ -89,7 +89,7 @@ export default function HomePage() {
 
         <MangaSection progressByManga={progressByManga} query={{ ...recommendations, data: dailyRecommendations }} title="For You" action={<Link to="/browse?sort=popularity">More picks</Link>} />
         <div id="latest"><MangaSection progressByManga={progressByManga} query={latest} title="Latest Updates" action={<Link to="/browse?sort=latest">View all</Link>} /></div>
-        <MangaSection progressByManga={progressByManga} query={manhwa} title="Popular Manhwa" action={<Link to="/browse?type=manhwa&sort=popularity">View all manhwa</Link>} />
+        {/* <MangaSection progressByManga={progressByManga} query={manhwa} title="Popular Manhwa" action={<Link to="/browse?type=manhwa&sort=popularity">View all manhwa</Link>} /> */}
         {CATEGORIES.map((category) => <CategorySection category={category} key={category.name} progressByManga={progressByManga} tags={tags} />)}
 
         <section className="content-section">

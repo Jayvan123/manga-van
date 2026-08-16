@@ -14,7 +14,6 @@ export default function BrowseFilters({ contentType, query, sort, selectedTags, 
     { disabled: !query.trim(), label: 'Relevance', value: 'relevance' },
     { label: 'Popularity', value: 'popularity' },
     { label: 'Latest upload', value: 'latest' },
-    { label: 'Alphabetical', value: 'alphabetical' },
   ]
 
   return (

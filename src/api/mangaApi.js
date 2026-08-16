@@ -10,7 +10,6 @@ const SORT_MAP = {
   relevance: 'relevance',
   popularity: 'followedCount',
   latest: 'latestUploadedChapter',
-  alphabetical: 'title',
 }
 
 export function listParams({ query = '', includedTagIds = [], contentType = 'all', sort = 'popularity', page = 1, limit = 20 } = {}) {
