@@ -41,6 +41,31 @@ export async function listManga(options = {}) {
   }
 }
 
+const TOP_PERIOD_DAYS = { today: 1, week: 7, month: 30 }
+
+export function topMangaParams({ period = 'week', limit = 10 } = {}) {
+  const days = TOP_PERIOD_DAYS[period] || TOP_PERIOD_DAYS.week
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 19)
+  return {
+    limit,
+    offset: 0,
+    'availableTranslatedLanguage[]': ['en'],
+    'contentRating[]': CONTENT_RATINGS,
+    'includes[]': ['cover_art', 'author', 'artist'],
+    'order[followedCount]': 'desc',
+    hasAvailableChapters: 'true',
+    updatedAtSince: since,
+  }
+}
+
+// Approximates "trending in period": popular manga (followedCount desc) restricted to those with
+// a chapter update within the period, since MangaDex doesn't expose per-period view counts.
+export async function listTopManga(options = {}) {
+  const { signal } = options
+  const response = await mangaDexClient.get('/manga', { params: topMangaParams(options), signal })
+  return (response.data.data || []).map(normalizeManga)
+}
+
 export async function searchManga(title, signal) {
   if (!title?.trim()) return []
   const result = await listManga({ query: title.trim(), sort: 'relevance', page: 1, limit: 6, signal })
