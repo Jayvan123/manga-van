@@ -30,6 +30,8 @@ export default function ReaderPage() {
   
   const touchStartX = useRef<number | null>(null)
   const touchEndX = useRef<number | null>(null)
+  const touchStartY = useRef<number | null>(null)
+  const touchEndY = useRef<number | null>(null)
   const touchStartDistance = useRef<number | null>(null)
   const baseZoom = useRef<number>(100)
   const minSwipeDistance = 50
@@ -175,6 +177,8 @@ export default function ReaderPage() {
     if (e.touches.length === 1) {
       touchStartX.current = e.touches[0].clientX
       touchEndX.current = e.touches[0].clientX
+      touchStartY.current = e.touches[0].clientY
+      touchEndY.current = e.touches[0].clientY
     } else if (e.touches.length === 2) {
       const xDist = e.touches[0].clientX - e.touches[1].clientX
       const yDist = e.touches[0].clientY - e.touches[1].clientY
@@ -186,6 +190,7 @@ export default function ReaderPage() {
   const handleTouchMove = (e: React.TouchEvent<HTMLDivElement>) => {
     if (e.touches.length === 1) {
       touchEndX.current = e.touches[0].clientX
+      touchEndY.current = e.touches[0].clientY
     } else if (e.touches.length === 2 && touchStartDistance.current !== null) {
       // Prevent browser default zoom
       if (e.cancelable) e.preventDefault()
@@ -203,11 +208,15 @@ export default function ReaderPage() {
     if (touchStartDistance.current !== null) {
       touchStartDistance.current = null
     } else {
-      if (readingMode === 'paged') {
-        if (touchStartX.current === null || touchEndX.current === null) return
-        const distance = touchStartX.current - touchEndX.current
-        const isLeftSwipe = distance > minSwipeDistance
-        const isRightSwipe = distance < -minSwipeDistance
+      if (touchStartX.current === null || touchEndX.current === null || touchStartY.current === null || touchEndY.current === null) return
+      const distanceX = touchStartX.current - touchEndX.current
+      const distanceY = touchStartY.current - touchEndY.current
+      
+      const isHorizontalSwipe = Math.abs(distanceX) > Math.abs(distanceY)
+
+      if (isHorizontalSwipe && readingMode === 'paged') {
+        const isLeftSwipe = distanceX > minSwipeDistance
+        const isRightSwipe = distanceX < -minSwipeDistance
 
         if (isLeftSwipe) {
           if (page < pageCount) {
@@ -220,10 +229,21 @@ export default function ReaderPage() {
             goToPage(page - 1)
           }
         }
+      } else if (!isHorizontalSwipe && readingMode === 'paged') {
+        const isUpSwipe = distanceY > minSwipeDistance
+        const isDownSwipe = distanceY < -minSwipeDistance
+
+        if (isUpSwipe) {
+          setIsHeaderHidden(true)
+        } else if (isDownSwipe) {
+          setIsHeaderHidden(false)
+        }
       }
     }
     touchStartX.current = null
     touchEndX.current = null
+    touchStartY.current = null
+    touchEndY.current = null
   }
 
   useEffect(() => {

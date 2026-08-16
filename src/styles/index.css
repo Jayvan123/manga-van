@@ -214,7 +214,7 @@ button:disabled { cursor: not-allowed; opacity: .38; }
 .reader-page { min-height: 100vh; background: #050914; }
 .reader-page:fullscreen { overflow-y: auto; }
 .reader-header { position: sticky; z-index: 20; top: 0; border-bottom: 1px solid var(--line); background: rgb(5 9 20 / 91%); box-shadow: 0 10px 32px rgb(0 0 0 / 20%); backdrop-filter: blur(18px); transition: transform .28s ease; }
-.reader-page.is-fullscreen.is-header-hidden .reader-header { transform: translateY(calc(-100% + 3px)); }
+.reader-page.is-header-hidden .reader-header { transform: translateY(-100%); }
 .reader-header__top { min-height: 4.75rem; display: grid; grid-template-columns: auto minmax(180px, 1fr) auto; align-items: center; gap: 1rem; padding: .65rem 1.15rem; }
 .reader-back { width: 2.65rem; height: 2.65rem; display: grid; place-items: center; border: 1px solid var(--line); border-radius: .75rem; background: #101a2e; transition: border-color .2s, background .2s; }
 .reader-back:hover { border-color: #486086; background: #182640; }
