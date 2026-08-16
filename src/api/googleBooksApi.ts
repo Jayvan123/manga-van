@@ -2,8 +2,9 @@ import axios from 'axios'
 
 const GOOGLE_BOOKS_URL = import.meta.env.VITE_GOOGLE_BOOKS_API_URL || 'https://www.googleapis.com/books/v1'
 const GOOGLE_BOOKS_KEY = import.meta.env.VITE_GOOGLE_BOOKS_API_KEY || ''
+const USE_GOOGLE_BOOKS = import.meta.env.VITE_USE_GOOGLE_BOOKS === 'true'
 
-export const isGoogleBooksConfigured = Boolean(GOOGLE_BOOKS_KEY)
+export const isGoogleBooksConfigured = Boolean(GOOGLE_BOOKS_KEY) || USE_GOOGLE_BOOKS
 
 export interface GoogleBookVolume {
   id: string
@@ -71,10 +72,12 @@ export function normalizeGoogleBook(volume: RawGoogleVolume): GoogleBookVolume {
 export async function searchEnglishVolumes(title: string, author = '', signal?: AbortSignal) {
   if (!isGoogleBooksConfigured || !title.trim()) return []
   const query = [`intitle:${title.trim()}`, author ? `inauthor:${author.trim()}` : ''].filter(Boolean).join(' ')
-  const response = await axios.get(`${GOOGLE_BOOKS_URL}/volumes`, {
+  
+  const url = GOOGLE_BOOKS_KEY ? `${GOOGLE_BOOKS_URL}/volumes` : '/api/googleBooks'
+  const response = await axios.get(url, {
     params: {
       q: query,
-      key: GOOGLE_BOOKS_KEY,
+      ...(GOOGLE_BOOKS_KEY ? { key: GOOGLE_BOOKS_KEY } : {}),
       langRestrict: 'en',
       printType: 'books',
       orderBy: 'relevance',
