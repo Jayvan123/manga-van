@@ -1,11 +1,12 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ReadingProgressProvider, useReadingProgress } from './ReadingProgressContext.jsx'
+import { ProfileProvider } from './ProfileContext.jsx'
 import { STORAGE_KEY } from '../utils/storage.js'
 
 describe('ReadingProgressProvider', () => {
   it('saves, completes, and resolves the next unread chapter', () => {
-    const wrapper = ({ children }) => <ReadingProgressProvider>{children}</ReadingProgressProvider>
+    const wrapper = ({ children }) => <ProfileProvider><ReadingProgressProvider>{children}</ReadingProgressProvider></ProfileProvider>
     const { result } = renderHook(() => useReadingProgress(), { wrapper })
     const chapters = [{ id: 'c1' }, { id: 'c2' }]
 

@@ -1,15 +1,26 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useCallback, useContext, useMemo, useState } from 'react'
-import { mergeProgress, readProgress, writeProgress } from '../utils/storage.js'
+import { clearProgressStorage, mergeProgress, readProgress, writeProgress } from '../utils/storage.js'
+import { useProfiles } from './ProfileContext.jsx'
 
 const ReadingProgressContext = createContext(null)
 
 export function ReadingProgressProvider({ children }) {
-  const [progressByManga, setProgressByManga] = useState(() => readProgress())
+  const { activeProfileId } = useProfiles()
+  const [progressByManga, setProgressByManga] = useState(() => readProgress(activeProfileId))
+  // Tracks which profile `progressByManga` was loaded for. When the active profile switches,
+  // reset the in-memory state from that profile's own storage during render (React's recommended
+  // "adjust state when a prop changes" pattern) so profiles sharing this browser never see each
+  // other's reading progress, without the cascading-render effect this used to need.
+  const [loadedProfileId, setLoadedProfileId] = useState(activeProfileId)
+  if (activeProfileId !== loadedProfileId) {
+    setLoadedProfileId(activeProfileId)
+    setProgressByManga(readProgress(activeProfileId))
+  }
 
   const commit = useCallback((updater) => {
-    setProgressByManga((current) => writeProgress(updater(current)))
-  }, [])
+    setProgressByManga((current) => writeProgress(updater(current), activeProfileId))
+  }, [activeProfileId])
 
   const saveProgress = useCallback((entry) => {
     if (!entry?.mangaId) return
@@ -28,9 +39,9 @@ export function ReadingProgressProvider({ children }) {
   }, [commit])
 
   const clearProgress = useCallback(() => {
-    window.localStorage.removeItem('mangavan:reading-progress:v1')
+    clearProgressStorage(activeProfileId)
     setProgressByManga({})
-  }, [])
+  }, [activeProfileId])
 
   const getProgress = useCallback((mangaId) => progressByManga[mangaId] || null, [progressByManga])
 

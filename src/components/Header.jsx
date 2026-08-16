@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom'
+import ProfileSwitcher from './ProfileSwitcher.jsx'
 import SearchBox from './SearchBox.jsx'
 
 export default function Header() {
@@ -8,10 +9,13 @@ export default function Header() {
         <NavLink className="wordmark" to="/" aria-label="MangaVAn home">
           Manga<span>VA</span>n
         </NavLink>
-        <nav aria-label="Primary navigation">
-          <NavLink to="/">Home</NavLink>
-          <NavLink to="/browse">Browse</NavLink>
-        </nav>
+        <div className="site-header__nav-group">
+          <nav aria-label="Primary navigation">
+            <NavLink to="/">Home</NavLink>
+            <NavLink to="/browse">Browse</NavLink>
+          </nav>
+          <ProfileSwitcher />
+        </div>
         <SearchBox />
       </div>
     </header>
