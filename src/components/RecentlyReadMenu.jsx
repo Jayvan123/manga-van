@@ -39,9 +39,8 @@ export default function RecentlyReadMenu({ items, progressByManga }) {
         <div className="recently-read-menu__panel" role="menu">
           {items.map((manga) => {
             const progress = progressByManga[manga.id]
-            const resumeHref = progress?.chapterId ? `/read/${manga.id}/${progress.chapterId}?page=${progress.page || 1}` : `/manga/${manga.id}`
             return (
-              <Link className="recently-read-menu__item" key={manga.id} onClick={() => setOpen(false)} role="menuitem" to={resumeHref}>
+              <Link className="recently-read-menu__item" key={manga.id} onClick={() => setOpen(false)} role="menuitem" to={`/manga/${manga.id}`}>
                 <img
                   alt=""
                   onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = '/cover-placeholder.svg' }}
@@ -49,7 +48,7 @@ export default function RecentlyReadMenu({ items, progressByManga }) {
                 />
                 <span className="recently-read-menu__item-body">
                   <strong>{manga.title}</strong>
-                  <span>{progress?.chapter ? `Ch. ${progress.chapter}` : 'Continue reading'}</span>
+                  <span>{progress?.chapter ? `Ch. ${progress.chapter}` : 'View details'}</span>
                 </span>
               </Link>
             )
