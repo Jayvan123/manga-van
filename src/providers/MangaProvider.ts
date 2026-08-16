@@ -25,6 +25,12 @@ export interface ChapterPages {
   dataSaverPages: string[]
 }
 
+export interface TopMangaOptions {
+  period?: 'today' | 'week' | 'month'
+  limit?: number
+  signal?: AbortSignal
+}
+
 export interface MangaProvider {
   listManga(options?: MangaListOptions): Promise<MangaListResult>
   searchManga(title: string, signal?: AbortSignal): Promise<Manga[]>
@@ -32,4 +38,5 @@ export interface MangaProvider {
   getMangaFeed(id: string, language?: string | null, signal?: AbortSignal): Promise<Chapter[]>
   getChapterPages(id: string, signal?: AbortSignal): Promise<ChapterPages>
   getTags(signal?: AbortSignal): Promise<MangaTag[]>
+  listTopManga(options?: TopMangaOptions): Promise<Manga[]>
 }
