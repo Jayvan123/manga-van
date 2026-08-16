@@ -37,6 +37,7 @@ export default function ReaderPage() {
   const minSwipeDistance = 50
   const scrollIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const mouseIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pagedIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const [imageFailed, setImageFailed] = useState(false)
   const [pagedUseDataSaver, setPagedUseDataSaver] = useState(false)
@@ -70,6 +71,9 @@ export default function ReaderPage() {
   const pageCount = pages.data?.pages.length || 0
   const page = Math.min(Math.max(requestedPage || initialPage || 1, 1), Math.max(pageCount, 1))
   const chapterProgress = pageCount ? (page / pageCount) * 100 : 0
+  // Windowed paged view never auto-hides, regardless of what the hide timers last set —
+  // it only competes for space (and thus only auto-hides) while fullscreen.
+  const headerHidden = isHeaderHidden && (readingMode === 'scroll' || isFullscreen)
 
   const goToPage = useCallback((nextPage: number) => {
     const bounded = Math.min(Math.max(nextPage, 1), Math.max(pageCount, 1))
@@ -192,7 +196,19 @@ export default function ReaderPage() {
     }, 80)
   }, [])
 
+  /**
+   * Fullscreen paged view has no scroll gesture to react to (page turns are horizontal), so instead
+   * the header behaves like a video player's controls: shown on any interaction, faded after 2 s idle.
+   */
+  const resetPagedIdleHide = useCallback(() => {
+    setIsHeaderHidden(false)
+    if (pagedIdleTimer.current) clearTimeout(pagedIdleTimer.current)
+    pagedIdleTimer.current = setTimeout(() => setIsHeaderHidden(true), 2000)
+  }, [])
+
   const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+    // Fullscreen paged view: any touch counts as activity, keeping the header visible.
+    if (readingMode === 'paged' && isFullscreen) resetPagedIdleHide()
     if (e.touches.length === 1) {
       touchStartX.current = e.touches[0].clientX
       touchEndX.current = e.touches[0].clientX
@@ -210,13 +226,16 @@ export default function ReaderPage() {
     if (e.touches.length === 1) {
       touchEndX.current = e.touches[0].clientX
       touchEndY.current = e.touches[0].clientY
-      // Finger dragging up (content scrolling down) hides the header;
-      // dragging down (scrolling back up) brings it straight back.
-      const deltaY = (touchStartY.current ?? 0) - e.touches[0].clientY
-      if (deltaY > 8) triggerSmartUIHide()
-      else if (deltaY < -8) {
-        setIsHeaderHidden(false)
-        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+      // Scroll view only: finger dragging up (content scrolling down) hides the header;
+      // dragging down (scrolling back up) brings it straight back. Paged view's touch is
+      // handled by resetPagedIdleHide() on touch start instead — its gesture is horizontal.
+      if (readingMode === 'scroll') {
+        const deltaY = (touchStartY.current ?? 0) - e.touches[0].clientY
+        if (deltaY > 8) triggerSmartUIHide()
+        else if (deltaY < -8) {
+          setIsHeaderHidden(false)
+          if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+        }
       }
     } else if (e.touches.length === 2 && touchStartDistance.current !== null) {
       // Prevent browser default zoom
@@ -269,19 +288,19 @@ export default function ReaderPage() {
   }, [page])
 
   useEffect(() => {
-    const updateFullscreenState = () => {
-      const fullscreen = Boolean(document.fullscreenElement)
-      setIsFullscreen(fullscreen)
-    }
+    const updateFullscreenState = () => setIsFullscreen(Boolean(document.fullscreenElement))
     document.addEventListener('fullscreenchange', updateFullscreenState)
     return () => document.removeEventListener('fullscreenchange', updateFullscreenState)
   }, [])
 
-  // Smart UI: hide controls while the user is actively scrolling, restore after 1.5 s idle.
-  // Works in both scroll mode and paged mode, fullscreen or not.
+  // Smart UI, scroll view: hide controls while the user is actively scrolling, restore
+  // immediately when scrolling back up, or after 1.5 s idle otherwise.
+  // Smart UI, paged view: no real scrolling to react to (page turns are horizontal), so this
+  // only drives the idle-timeout show/fade — active exclusively while fullscreen.
   useEffect(() => {
     let previousScrollTop = 0
     const handleScroll = () => {
+      if (readingMode !== 'scroll') return
       const currentScrollTop = document.fullscreenElement
         ? readerRef.current?.scrollTop || 0
         : window.scrollY || document.documentElement.scrollTop
@@ -311,18 +330,25 @@ export default function ReaderPage() {
       }
     }
 
-    // Desktop: wheel events trigger hide in paged mode (no scroll events there);
-    // scrolling back up brings the header straight back.
+    // Desktop: wheel events. Scroll view: direction-based hide/restore (no native scroll events
+    // fire there). Fullscreen paged view: any wheel motion just counts as activity.
     const handleWheel = (e: WheelEvent) => {
-      if (e.deltaY > 4) triggerSmartUIHide()
-      else if (e.deltaY < -4) {
-        setIsHeaderHidden(false)
-        if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+      if (readingMode === 'scroll') {
+        if (e.deltaY > 4) triggerSmartUIHide()
+        else if (e.deltaY < -4) {
+          setIsHeaderHidden(false)
+          if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
+        }
+      } else if (isFullscreen) {
+        resetPagedIdleHide()
       }
     }
 
-    // Desktop: mouse move restores the header so users can access controls
-    const handleMouseMove = () => triggerSmartUIRestore()
+    // Desktop: mouse move restores the header so users can access controls.
+    const handleMouseMove = () => {
+      if (readingMode === 'scroll') triggerSmartUIRestore()
+      else if (isFullscreen) resetPagedIdleHide()
+    }
 
     window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('wheel', handleWheel, { passive: true })
@@ -340,7 +366,18 @@ export default function ReaderPage() {
       if (scrollIdleTimer.current) clearTimeout(scrollIdleTimer.current)
       if (mouseIdleTimer.current) clearTimeout(mouseIdleTimer.current)
     }
-  }, [triggerSmartUIHide, triggerSmartUIRestore])
+  }, [readingMode, isFullscreen, resetPagedIdleHide, triggerSmartUIHide, triggerSmartUIRestore])
+
+  // Fullscreen paged view: turning a page (tap, nav buttons, arrow keys, swipe) counts as
+  // activity too, so the header re-shows and the idle-fade timer restarts.
+  useEffect(() => {
+    if (readingMode !== 'paged' || !isFullscreen) return
+    const frame = window.requestAnimationFrame(() => resetPagedIdleHide())
+    return () => {
+      window.cancelAnimationFrame(frame)
+      if (pagedIdleTimer.current) clearTimeout(pagedIdleTimer.current)
+    }
+  }, [page, readingMode, isFullscreen, resetPagedIdleHide])
 
   useEffect(() => {
     if (!isChapterPanelOpen) return
@@ -436,6 +473,7 @@ export default function ReaderPage() {
 
   const handleReaderClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (readingMode !== 'paged' || (event.target as Element).closest('button, a')) return
+    if (isFullscreen) resetPagedIdleHide()
     const bounds = event.currentTarget.getBoundingClientRect()
     goToPage(event.clientX < bounds.left + bounds.width / 2 ? page - 1 : page + 1)
   }
@@ -466,7 +504,7 @@ export default function ReaderPage() {
   )
 
   return (
-    <main className={`reader-page reader-page--${readingMode}${isFullscreen ? ' is-fullscreen' : ''}${isHeaderHidden ? ' is-header-hidden' : ''}`} ref={readerRef}>
+    <main className={`reader-page reader-page--${readingMode}${isFullscreen ? ' is-fullscreen' : ''}${headerHidden ? ' is-header-hidden' : ''}`} ref={readerRef}>
       <header className="reader-header">
         <div className="reader-header__top">
           <Link className="reader-back" to={`/manga/${mangaId}`} aria-label="Back to manga details">
@@ -479,8 +517,8 @@ export default function ReaderPage() {
           </div>
           <div className="reader-tools">
             <div aria-label="Reading mode" className="reader-mode-switch" role="group">
-              <button aria-pressed={readingMode === 'paged'} onClick={() => changeReadingMode('paged')} type="button">Page</button>
               <button aria-pressed={readingMode === 'scroll'} onClick={() => changeReadingMode('scroll')} type="button">Scroll</button>
+              <button aria-pressed={readingMode === 'paged'} onClick={() => changeReadingMode('paged')} type="button">Page</button>
             </div>
             <div aria-label="Zoom controls" className="reader-zoom-controls" role="group">
               <button onClick={() => setZoom(z => Math.max(z - 10, 50))} type="button" aria-label="Zoom out">−</button>
